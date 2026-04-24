@@ -1,0 +1,1102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Neon Pop Sweeper</title>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0b0b1a;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+      cursor: crosshair;
+    }
+    #resultPanel {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.55);
+      color: #e6f6ff;
+      z-index: 10;
+    }
+    #resultCard {
+      width: min(460px, 90vw);
+      background: rgba(15, 19, 35, 0.95);
+      border: 1px solid rgba(120, 210, 255, 0.45);
+      border-radius: 14px;
+      box-shadow: 0 0 24px rgba(90, 210, 255, 0.28);
+      padding: 20px;
+    }
+    #resultTitle {
+      margin: 0 0 12px;
+      font-size: 20px;
+      color: #7fe5ff;
+      text-align: center;
+      letter-spacing: 0.4px;
+    }
+    #resultList {
+      margin: 10px 0 18px;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 8px;
+      font-size: 15px;
+    }
+    #resultList li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.04);
+    }
+    #resultList li.you {
+      border: 1px solid rgba(255, 230, 120, 0.75);
+      background: rgba(255, 230, 120, 0.08);
+    }
+    #restartBtn {
+      width: 100%;
+      border: 0;
+      border-radius: 10px;
+      padding: 11px 12px;
+      font-size: 15px;
+      font-weight: 700;
+      color: #08111a;
+      background: linear-gradient(180deg, #7df0ff, #40c8ff);
+      cursor: pointer;
+    }
+    #restartBtn:active {
+      transform: translateY(1px);
+    }
+    #startPanel {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.58);
+      z-index: 11;
+      color: #e6f6ff;
+    }
+    #startCard {
+      width: min(520px, 92vw);
+      background: rgba(15, 19, 35, 0.96);
+      border: 1px solid rgba(120, 210, 255, 0.5);
+      border-radius: 14px;
+      box-shadow: 0 0 28px rgba(90, 210, 255, 0.25);
+      padding: 22px;
+    }
+    #startTitle {
+      margin: 0 0 8px;
+      text-align: center;
+      color: #7fe5ff;
+      font-size: 24px;
+      letter-spacing: 0.4px;
+    }
+    #startSub {
+      margin: 0 0 14px;
+      text-align: center;
+      color: #c8edff;
+      font-size: 14px;
+    }
+    #guideList {
+      margin: 0 0 16px;
+      padding: 0 0 0 18px;
+      display: grid;
+      gap: 7px;
+      font-size: 14px;
+      color: #d8ecff;
+      line-height: 1.35;
+    }
+    #startBtn {
+      width: 100%;
+      border: 0;
+      border-radius: 10px;
+      padding: 12px 12px;
+      font-size: 16px;
+      font-weight: 700;
+      color: #08111a;
+      background: linear-gradient(180deg, #91f6ff, #43cbff);
+      cursor: pointer;
+    }
+    #startBtn:active {
+      transform: translateY(1px);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div id="startPanel" aria-live="polite">
+    <div id="startCard">
+      <h1 id="startTitle">Neon Pop Sweeper</h1>
+      <p id="startSub">70초 동안 AI 3명과 점수 경쟁</p>
+      <ul id="guideList">
+        <li>화면 드래그 조이스틱 또는 WASD/방향키로 이동합니다.</li>
+        <li>네온 닷을 수집하면 점수/콤보가 오르고 캐릭터가 커집니다.</li>
+        <li>70초 종료 시 최종 랭킹이 결정됩니다.</li>
+      </ul>
+      <button id="startBtn" type="button">Start Game</button>
+    </div>
+  </div>
+  <div id="resultPanel" aria-live="polite">
+    <div id="resultCard">
+      <h2 id="resultTitle">Final Ranking</h2>
+      <ul id="resultList"></ul>
+      <button id="restartBtn" type="button">Restart</button>
+    </div>
+  </div>
+
+  <script>
+    "use strict";
+
+    // 1) Constants
+    const CONFIG = {
+      MAP_W: 2000,
+      MAP_H: 2000,
+      SESSION_MS: 70000,
+      BASE_SPEED: 220,
+      BASE_ACTOR_RADIUS: 15,
+      ACTOR_SIZE_MULTIPLIER: 2.0,
+      MAX_COMBO: 50,
+      JOYSTICK_MAX: 80,
+      SPAWN_MIN: 220,
+      SPAWN_TARGET: 250,
+      SPAWN_MAX: 280,
+      SPAWN_INTERVAL: 0.25,
+      SPAWN_SAFE_RADIUS: 120,
+      BOT_RETARGET_INTERVAL: 0.4,
+      COMBO_DECAY_DELAY: 1.2,
+      COMBO_DECAY_PER_SEC: 5,
+      FEVER_SECONDS: 2.5,
+      ZOOM_MIN: 0.2,
+      ZOOM_MAX: 3.0,
+      ZOOM_LERP_ALPHA: 0.1,
+      ZOOM_COMBO_FACTOR: 0.007,
+      CAMERA_CLOSENESS_MULTIPLIER: 1.3,
+      SHADOW_BLUR: 16,
+      SHADOW_BLUR_LOW: 10,
+      PARTICLE_CAP: 140,
+      SHAKE_MAX_AMPLITUDE: 6,
+      SHAKE_MAX_DURATION: 0.18,
+      PLAYER_COLLECT_RADIUS_MULTIPLIER: 1.82,
+      BOT_COLLECT_RADIUS_MULTIPLIER: 0.9,
+      PLAYER_SPEED_MULTIPLIER: 1.0,
+      BOT_SPEED_MULTIPLIER: 0.88,
+      COMBO_CHAIN_WINDOW_SEC: 0.6,
+      COMBO_TEXT_SCREEN_Y: 170
+    };
+
+    const DOT_TYPES = [
+      { key: "normal", chance: 0.85, baseScore: 10, comboGain: 1, color: "#54e7ff", radius: 5 },
+      { key: "bonus", chance: 0.12, baseScore: 25, comboGain: 2, color: "#7dff8e", radius: 6 },
+      { key: "fever", chance: 0.03, baseScore: 40, comboGain: 4, color: "#ff58d3", radius: 7 }
+    ];
+
+    const ACTOR_COLORS = ["#4fdfff", "#ff7ad7", "#a6ff68", "#ffb45c"];
+    const ACTOR_NAMES = ["YOU", "BOT-A", "BOT-B", "BOT-C"];
+
+    // 2) State
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const startPanel = document.getElementById("startPanel");
+    const startBtn = document.getElementById("startBtn");
+    const resultPanel = document.getElementById("resultPanel");
+    const resultList = document.getElementById("resultList");
+    const restartBtn = document.getElementById("restartBtn");
+
+    const state = {
+      width: 0,
+      height: 0,
+      running: true,
+      ended: false,
+      startTimeMs: 0,
+      elapsedMs: 0,
+      remainingMs: CONFIG.SESSION_MS,
+      lastFrameTimeMs: 0,
+      spawnAccumulator: 0,
+      dots: [],
+      particles: [],
+      comboEffects: [],
+      actors: [],
+      camera: { x: 1000, y: 1000, zoom: 1 },
+      joystick: {
+        active: false,
+        pointerId: null,
+        baseX: 0,
+        baseY: 0,
+        knobX: 0,
+        knobY: 0,
+        dirX: 0,
+        dirY: 0,
+        power: 0
+      },
+      shake: { timeLeft: 0, duration: 0, amplitude: 0 },
+      keyboard: {
+        up: false,
+        down: false,
+        left: false,
+        right: false
+      },
+      qualityReduced: false,
+      fpsMonitor: { timer: 0, frames: 0, currentFps: 60 }
+    };
+
+    // 3) Utility
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+
+    function randRange(min, max) {
+      return min + Math.random() * (max - min);
+    }
+
+    function distSq(aX, aY, bX, bY) {
+      const dx = aX - bX;
+      const dy = aY - bY;
+      return dx * dx + dy * dy;
+    }
+
+    function chooseDotType() {
+      const r = Math.random();
+      let acc = 0;
+      for (const type of DOT_TYPES) {
+        acc += type.chance;
+        if (r <= acc) {
+          return type;
+        }
+      }
+      return DOT_TYPES[0];
+    }
+
+    function comboColorForCount(chainCount) {
+      if (chainCount <= 15) return "#ffffff";
+      if (chainCount <= 30) return "#58b6ff";
+      if (chainCount <= 45) return "#ffe066";
+      if (chainCount <= 60) return "#ff5f63";
+      return "#b06bff";
+    }
+
+    function comboTierForCount(chainCount) {
+      if (chainCount <= 15) return 0;
+      if (chainCount <= 30) return 1;
+      if (chainCount <= 45) return 2;
+      if (chainCount <= 60) return 3;
+      return 4;
+    }
+
+    function actorRadius(actor) {
+      return (CONFIG.BASE_ACTOR_RADIUS + actor.combo * 1.0) * CONFIG.ACTOR_SIZE_MULTIPLIER;
+    }
+
+    function actorSpeed(actor) {
+      const feverMul = actor.feverUntil > state.elapsedMs / 1000 ? 1.1 : 1.0;
+      const actorSpeedMul = actor.isPlayer
+        ? CONFIG.PLAYER_SPEED_MULTIPLIER
+        : CONFIG.BOT_SPEED_MULTIPLIER;
+      return CONFIG.BASE_SPEED * actorSpeedMul * feverMul;
+    }
+
+    function actorCollectRadius(actor) {
+      const pickupMul = actor.isPlayer
+        ? CONFIG.PLAYER_COLLECT_RADIUS_MULTIPLIER
+        : CONFIG.BOT_COLLECT_RADIUS_MULTIPLIER;
+      // Keep a constant gap between body edge and pickup edge while scaling with actor size.
+      const edgeOffset = CONFIG.BASE_ACTOR_RADIUS * (pickupMul - 1);
+      const scaledRadiusWithFixedGap = actorRadius(actor) + edgeOffset;
+      const feverMul = actor.feverUntil > state.elapsedMs / 1000 ? 1.35 : 1.0;
+      return scaledRadiusWithFixedGap * feverMul;
+    }
+
+    function currentRanks() {
+      return [...state.actors].sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return a.scoreReachedAt - b.scoreReachedAt;
+      });
+    }
+
+    function getRankIndex(actor) {
+      const sorted = currentRanks();
+      return sorted.findIndex((x) => x.id === actor.id) + 1;
+    }
+
+    // 4) Game Initialization / Restart
+    function createActor(id, x, y, color, name, isPlayer) {
+      return {
+        id,
+        name,
+        color,
+        isPlayer,
+        x,
+        y,
+        vx: 0,
+        vy: 0,
+        score: 0,
+        combo: 0,
+        lastCollectSec: 0,
+        comboChainCount: 0,
+        feverUntil: 0,
+        scoreReachedAt: 0,
+        targetDotId: null,
+        retargetTimer: 0
+      };
+    }
+
+    function initActors() {
+      state.actors = [
+        createActor(0, CONFIG.MAP_W * 0.5, CONFIG.MAP_H * 0.5, ACTOR_COLORS[0], ACTOR_NAMES[0], true),
+        createActor(1, CONFIG.MAP_W * 0.45, CONFIG.MAP_H * 0.45, ACTOR_COLORS[1], ACTOR_NAMES[1], false),
+        createActor(2, CONFIG.MAP_W * 0.55, CONFIG.MAP_H * 0.45, ACTOR_COLORS[2], ACTOR_NAMES[2], false),
+        createActor(3, CONFIG.MAP_W * 0.50, CONFIG.MAP_H * 0.58, ACTOR_COLORS[3], ACTOR_NAMES[3], false)
+      ];
+    }
+
+    function spawnOneDot() {
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        const x = randRange(16, CONFIG.MAP_W - 16);
+        const y = randRange(16, CONFIG.MAP_H - 16);
+        let valid = true;
+        for (const actor of state.actors) {
+          const safeR = CONFIG.SPAWN_SAFE_RADIUS;
+          if (distSq(x, y, actor.x, actor.y) < safeR * safeR) {
+            valid = false;
+            break;
+          }
+        }
+        if (!valid) continue;
+        const type = chooseDotType();
+        state.dots.push({
+          id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random()}`,
+          x,
+          y,
+          type: type.key,
+          baseScore: type.baseScore,
+          comboGain: type.comboGain,
+          color: type.color,
+          radius: type.radius
+        });
+        return;
+      }
+    }
+
+    function fillInitialDots() {
+      state.dots.length = 0;
+      for (let i = 0; i < CONFIG.SPAWN_MIN; i += 1) {
+        spawnOneDot();
+      }
+    }
+
+    function resetGame() {
+      initActors();
+      fillInitialDots();
+      state.particles.length = 0;
+      state.comboEffects.length = 0;
+      state.spawnAccumulator = 0;
+      state.shake.timeLeft = 0;
+      state.shake.duration = 0;
+      state.shake.amplitude = 0;
+      state.qualityReduced = false;
+      state.fpsMonitor.timer = 0;
+      state.fpsMonitor.frames = 0;
+      state.fpsMonitor.currentFps = 60;
+      state.camera.zoom = CONFIG.ZOOM_MAX;
+      state.camera.x = CONFIG.MAP_W * 0.5;
+      state.camera.y = CONFIG.MAP_H * 0.5;
+      resetJoystick();
+      state.running = true;
+      state.ended = false;
+      state.startTimeMs = performance.now();
+      state.lastFrameTimeMs = state.startTimeMs;
+      state.elapsedMs = 0;
+      state.remainingMs = CONFIG.SESSION_MS;
+      hideResultPanel();
+    }
+
+    // 5) Input System
+    function canvasPointFromEvent(evt) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: evt.clientX - rect.left,
+        y: evt.clientY - rect.top
+      };
+    }
+
+    function resetJoystick() {
+      state.joystick.active = false;
+      state.joystick.pointerId = null;
+      state.joystick.dirX = 0;
+      state.joystick.dirY = 0;
+      state.joystick.power = 0;
+    }
+
+    function keyboardMoveVector() {
+      const k = state.keyboard;
+      const x = (k.right ? 1 : 0) - (k.left ? 1 : 0);
+      const y = (k.down ? 1 : 0) - (k.up ? 1 : 0);
+      const mag = Math.hypot(x, y);
+      if (mag <= 0) {
+        return { x: 0, y: 0, power: 0 };
+      }
+      return { x: x / mag, y: y / mag, power: 1 };
+    }
+
+    function updateJoystickByPointer(evt) {
+      const p = canvasPointFromEvent(evt);
+      const j = state.joystick;
+      const dx = p.x - j.baseX;
+      const dy = p.y - j.baseY;
+      const dist = Math.hypot(dx, dy);
+      const clampedDist = Math.min(dist, CONFIG.JOYSTICK_MAX);
+      const nx = dist > 0 ? dx / dist : 0;
+      const ny = dist > 0 ? dy / dist : 0;
+      j.knobX = j.baseX + nx * clampedDist;
+      j.knobY = j.baseY + ny * clampedDist;
+      j.dirX = nx;
+      j.dirY = ny;
+      j.power = clamp(clampedDist / CONFIG.JOYSTICK_MAX, 0, 1);
+    }
+
+    canvas.addEventListener("pointerdown", (evt) => {
+      if (!state.running) return;
+      if (state.ended) return;
+      if (state.joystick.active) return;
+      const p = canvasPointFromEvent(evt);
+      const j = state.joystick;
+      j.active = true;
+      j.pointerId = evt.pointerId;
+      j.baseX = p.x;
+      j.baseY = p.y;
+      j.knobX = p.x;
+      j.knobY = p.y;
+      j.dirX = 0;
+      j.dirY = 0;
+      j.power = 0;
+      canvas.setPointerCapture(evt.pointerId);
+    });
+
+    canvas.addEventListener("pointermove", (evt) => {
+      if (!state.joystick.active || state.joystick.pointerId !== evt.pointerId) return;
+      updateJoystickByPointer(evt);
+    });
+
+    function onPointerEnd(evt) {
+      if (!state.joystick.active || state.joystick.pointerId !== evt.pointerId) return;
+      resetJoystick();
+      if (canvas.hasPointerCapture(evt.pointerId)) {
+        canvas.releasePointerCapture(evt.pointerId);
+      }
+    }
+
+    canvas.addEventListener("pointerup", onPointerEnd);
+    canvas.addEventListener("pointercancel", onPointerEnd);
+    canvas.addEventListener("pointerleave", (evt) => {
+      if (evt.pointerType === "mouse") onPointerEnd(evt);
+    });
+
+    function setKeyState(code, isDown) {
+      if (code === "KeyW" || code === "ArrowUp") state.keyboard.up = isDown;
+      if (code === "KeyS" || code === "ArrowDown") state.keyboard.down = isDown;
+      if (code === "KeyA" || code === "ArrowLeft") state.keyboard.left = isDown;
+      if (code === "KeyD" || code === "ArrowRight") state.keyboard.right = isDown;
+    }
+
+    window.addEventListener("keydown", (evt) => {
+      setKeyState(evt.code, true);
+    });
+
+    window.addEventListener("keyup", (evt) => {
+      setKeyState(evt.code, false);
+    });
+
+    window.addEventListener("blur", () => {
+      state.keyboard.up = false;
+      state.keyboard.down = false;
+      state.keyboard.left = false;
+      state.keyboard.right = false;
+    });
+
+    // 6) Gameplay Update
+    function updatePlayer(dt) {
+      const player = state.actors[0];
+      const kb = keyboardMoveVector();
+      const inputX = kb.power > 0 ? kb.x : state.joystick.dirX;
+      const inputY = kb.power > 0 ? kb.y : state.joystick.dirY;
+      const inputPower = kb.power > 0 ? kb.power : state.joystick.power;
+      const moveSpeed = actorSpeed(player) * inputPower;
+      const mx = inputX * moveSpeed * dt;
+      const my = inputY * moveSpeed * dt;
+      player.x = clamp(player.x + mx, 0, CONFIG.MAP_W);
+      player.y = clamp(player.y + my, 0, CONFIG.MAP_H);
+    }
+
+    function findDotById(dotId) {
+      if (!dotId) return null;
+      for (const dot of state.dots) {
+        if (dot.id === dotId) return dot;
+      }
+      return null;
+    }
+
+    function retargetBot(bot) {
+      const botRank = getRankIndex(bot);
+      let bestDot = null;
+      let bestScore = -Infinity;
+      for (const dot of state.dots) {
+        const d = Math.hypot(dot.x - bot.x, dot.y - bot.y);
+        const valueScore = dot.baseScore * 1.0;
+        const distScore = -d * 0.08;
+        const catchupBonus = botRank >= 3 ? 8 : 0;
+        const total = valueScore + distScore + catchupBonus;
+        if (total > bestScore) {
+          bestScore = total;
+          bestDot = dot;
+        }
+      }
+      bot.targetDotId = bestDot ? bestDot.id : null;
+    }
+
+    function updateBots(dt) {
+      for (let i = 1; i < state.actors.length; i += 1) {
+        const bot = state.actors[i];
+        bot.retargetTimer += dt;
+        let target = findDotById(bot.targetDotId);
+        if (!target || bot.retargetTimer >= CONFIG.BOT_RETARGET_INTERVAL) {
+          bot.retargetTimer = 0;
+          retargetBot(bot);
+          target = findDotById(bot.targetDotId);
+        }
+        if (!target) {
+          bot.vx *= 0.92;
+          bot.vy *= 0.92;
+          bot.x = clamp(bot.x + bot.vx * dt, 0, CONFIG.MAP_W);
+          bot.y = clamp(bot.y + bot.vy * dt, 0, CONFIG.MAP_H);
+          continue;
+        }
+
+        const dx = target.x - bot.x;
+        const dy = target.y - bot.y;
+        const dist = Math.hypot(dx, dy);
+        const nx = dist > 0.0001 ? dx / dist : 0;
+        const ny = dist > 0.0001 ? dy / dist : 0;
+        const speed = actorSpeed(bot);
+        bot.vx = nx * speed;
+        bot.vy = ny * speed;
+        bot.x = clamp(bot.x + bot.vx * dt, 0, CONFIG.MAP_W);
+        bot.y = clamp(bot.y + bot.vy * dt, 0, CONFIG.MAP_H);
+      }
+    }
+
+    function emitCollectionParticles(dot) {
+      const qualityMul = state.qualityReduced ? 0.7 : 1.0;
+      const baseCount = dot.type === "fever" ? 20 : dot.type === "bonus" ? 12 : 8;
+      const count = Math.floor(baseCount * qualityMul);
+      for (let i = 0; i < count; i += 1) {
+        if (state.particles.length >= CONFIG.PARTICLE_CAP) break;
+        const ang = Math.random() * Math.PI * 2;
+        const speed = randRange(35, 210);
+        const life = randRange(0.35, 0.6);
+        state.particles.push({
+          x: dot.x,
+          y: dot.y,
+          vx: Math.cos(ang) * speed,
+          vy: Math.sin(ang) * speed,
+          life,
+          maxLife: life,
+          size: randRange(2, 6),
+          color: dot.color
+        });
+      }
+    }
+
+    function emitComboEffect(chainCount) {
+      const tier = comboTierForCount(chainCount);
+      const sizeMul = 1 + tier * 0.1;
+      state.comboEffects.length = 0;
+      state.comboEffects.push({
+        life: 0.9,
+        maxLife: 0.9,
+        scale: 1.24 * sizeMul,
+        fontSize: 26 * sizeMul,
+        text: `COMBO x${chainCount}`,
+        color: comboColorForCount(chainCount)
+      });
+    }
+
+    function applyCollection(actor, dot) {
+      const nowSec = state.elapsedMs / 1000;
+      const withinChainWindow = nowSec - actor.lastCollectSec <= CONFIG.COMBO_CHAIN_WINDOW_SEC;
+      actor.comboChainCount = withinChainWindow ? actor.comboChainCount + 1 : 1;
+
+      actor.combo = Math.min(CONFIG.MAX_COMBO, actor.combo + dot.comboGain);
+      actor.score += dot.baseScore + actor.combo * 2;
+      actor.lastCollectSec = nowSec;
+      actor.scoreReachedAt = state.elapsedMs;
+      if (dot.type === "fever") {
+        actor.feverUntil = nowSec + CONFIG.FEVER_SECONDS;
+      }
+      emitCollectionParticles(dot);
+      if (actor.isPlayer && actor.comboChainCount >= 2) {
+        emitComboEffect(actor.comboChainCount);
+      }
+    }
+
+    function updateCollections() {
+      for (const actor of state.actors) {
+        const collectR = actorCollectRadius(actor);
+        for (let i = state.dots.length - 1; i >= 0; i -= 1) {
+          const dot = state.dots[i];
+          // Include dot radius so pickups happen slightly before visual contact.
+          const totalPickupR = collectR + dot.radius;
+          if (distSq(actor.x, actor.y, dot.x, dot.y) <= totalPickupR * totalPickupR) {
+            applyCollection(actor, dot);
+            state.dots.splice(i, 1);
+          }
+        }
+      }
+    }
+
+    function updateComboDecay(actor, dt) {
+      const nowSec = state.elapsedMs / 1000;
+      if (nowSec - actor.lastCollectSec <= CONFIG.COMBO_DECAY_DELAY) return;
+      actor.combo = Math.max(0, actor.combo - CONFIG.COMBO_DECAY_PER_SEC * dt);
+    }
+
+    function updateComboChainTimeout(actor) {
+      const nowSec = state.elapsedMs / 1000;
+      if (nowSec - actor.lastCollectSec > CONFIG.COMBO_CHAIN_WINDOW_SEC) {
+        actor.comboChainCount = 0;
+      }
+    }
+
+    function maintainDots(dt) {
+      state.spawnAccumulator += dt;
+      while (state.spawnAccumulator >= CONFIG.SPAWN_INTERVAL) {
+        state.spawnAccumulator -= CONFIG.SPAWN_INTERVAL;
+        if (state.dots.length < CONFIG.SPAWN_MIN) {
+          while (state.dots.length < CONFIG.SPAWN_TARGET && state.dots.length < CONFIG.SPAWN_MAX) {
+            spawnOneDot();
+          }
+        } else if (state.dots.length < CONFIG.SPAWN_TARGET) {
+          spawnOneDot();
+        }
+      }
+    }
+
+    function updateParticles(dt) {
+      for (let i = state.particles.length - 1; i >= 0; i -= 1) {
+        const p = state.particles[i];
+        p.life -= dt;
+        if (p.life <= 0) {
+          state.particles.splice(i, 1);
+          continue;
+        }
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vx *= 0.93;
+        p.vy *= 0.93;
+      }
+    }
+
+    function updateComboEffects(dt) {
+      for (let i = state.comboEffects.length - 1; i >= 0; i -= 1) {
+        const effect = state.comboEffects[i];
+        effect.life -= dt;
+        if (effect.life <= 0) {
+          state.comboEffects.splice(i, 1);
+          continue;
+        }
+        effect.scale = lerp(effect.scale, 1.0, 0.12);
+      }
+    }
+
+    function updateShake(dt) {
+      if (state.shake.timeLeft <= 0) return;
+      state.shake.timeLeft = Math.max(0, state.shake.timeLeft - dt);
+    }
+
+    function updateCamera() {
+      const player = state.actors[0];
+      const targetZoomRaw = (1 / (1 + player.combo * CONFIG.ZOOM_COMBO_FACTOR))
+        * CONFIG.CAMERA_CLOSENESS_MULTIPLIER;
+      const targetZoom = clamp(targetZoomRaw, CONFIG.ZOOM_MIN, CONFIG.ZOOM_MAX);
+      state.camera.zoom = lerp(state.camera.zoom, targetZoom, CONFIG.ZOOM_LERP_ALPHA);
+      state.camera.zoom = clamp(state.camera.zoom, CONFIG.ZOOM_MIN, CONFIG.ZOOM_MAX);
+
+      const halfW = state.width / (2 * state.camera.zoom);
+      const halfH = state.height / (2 * state.camera.zoom);
+      if (halfW >= CONFIG.MAP_W * 0.5) {
+        state.camera.x = CONFIG.MAP_W * 0.5;
+      } else {
+        state.camera.x = clamp(player.x, halfW, CONFIG.MAP_W - halfW);
+      }
+      if (halfH >= CONFIG.MAP_H * 0.5) {
+        state.camera.y = CONFIG.MAP_H * 0.5;
+      } else {
+        state.camera.y = clamp(player.y, halfH, CONFIG.MAP_H - halfH);
+      }
+    }
+
+    function updateQualityFallback(dt) {
+      state.fpsMonitor.timer += dt;
+      state.fpsMonitor.frames += 1;
+      if (state.fpsMonitor.timer >= 1) {
+        state.fpsMonitor.currentFps = state.fpsMonitor.frames / state.fpsMonitor.timer;
+        state.fpsMonitor.timer = 0;
+        state.fpsMonitor.frames = 0;
+        if (state.fpsMonitor.currentFps < 45) {
+          state.qualityReduced = true;
+        }
+      }
+    }
+
+    function updateGame(nowMs) {
+      const deltaMs = nowMs - state.lastFrameTimeMs;
+      state.lastFrameTimeMs = nowMs;
+      const dt = clamp(deltaMs / 1000, 0, 0.05);
+
+      state.elapsedMs = nowMs - state.startTimeMs;
+      state.remainingMs = Math.max(0, CONFIG.SESSION_MS - state.elapsedMs);
+
+      if (state.elapsedMs >= CONFIG.SESSION_MS) {
+        state.elapsedMs = CONFIG.SESSION_MS;
+        state.remainingMs = 0;
+        endGame();
+        return;
+      }
+
+      updatePlayer(dt);
+      updateBots(dt);
+      updateCollections();
+      maintainDots(dt);
+      for (const actor of state.actors) {
+        updateComboChainTimeout(actor);
+        updateComboDecay(actor, dt);
+      }
+      updateParticles(dt);
+      updateComboEffects(dt);
+      updateShake(dt);
+      updateCamera();
+      updateQualityFallback(dt);
+    }
+
+    // 7) Rendering
+    function withNeon(color, blur, drawFn) {
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.shadowColor = color;
+      ctx.shadowBlur = blur;
+      ctx.fillStyle = color;
+      ctx.strokeStyle = color;
+      drawFn();
+      ctx.restore();
+    }
+
+    function drawBackgroundWorld() {
+      ctx.fillStyle = "#0b0b1a";
+      ctx.fillRect(0, 0, CONFIG.MAP_W, CONFIG.MAP_H);
+
+      // Simple neon grid
+      ctx.save();
+      ctx.globalAlpha = 0.22;
+      ctx.strokeStyle = "#18213f";
+      ctx.lineWidth = 1;
+      const step = 80;
+      for (let x = 0; x <= CONFIG.MAP_W; x += step) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, CONFIG.MAP_H);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= CONFIG.MAP_H; y += step) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(CONFIG.MAP_W, y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawDots() {
+      const blur = state.qualityReduced ? CONFIG.SHADOW_BLUR_LOW : CONFIG.SHADOW_BLUR;
+      for (const dot of state.dots) {
+        withNeon(dot.color, blur, () => {
+          const size = dot.radius * 2;
+          ctx.beginPath();
+          ctx.rect(dot.x - dot.radius, dot.y - dot.radius, size, size);
+          ctx.fill();
+        });
+      }
+    }
+
+    function drawParticles() {
+      for (const p of state.particles) {
+        const alpha = clamp(p.life / p.maxLife, 0, 1);
+        withNeon(p.color, 10, () => {
+          ctx.globalAlpha = alpha;
+          ctx.beginPath();
+          ctx.rect(p.x - p.size * 0.5, p.y - p.size * 0.5, p.size, p.size);
+          ctx.fill();
+        });
+      }
+    }
+
+    function drawComboEffects() {
+      for (const effect of state.comboEffects) {
+        const alpha = clamp(effect.life / effect.maxLife, 0, 1);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.textAlign = "center";
+        ctx.translate(state.width * 0.5, CONFIG.COMBO_TEXT_SCREEN_Y);
+        ctx.scale(effect.scale, effect.scale);
+        ctx.font = `bold ${effect.fontSize}px Arial`;
+        withNeon(effect.color, 14, () => {
+          ctx.fillText(effect.text, 0, 0);
+        });
+        ctx.restore();
+      }
+    }
+
+    function drawCrown(x, y, radius) {
+      const topY = y - radius - 34;
+      withNeon("#ffd76a", 18, () => {
+        ctx.beginPath();
+        ctx.moveTo(x - 12, topY + 8);
+        ctx.lineTo(x - 8, topY - 5);
+        ctx.lineTo(x - 1, topY + 4);
+        ctx.lineTo(x + 5, topY - 6);
+        ctx.lineTo(x + 11, topY + 8);
+        ctx.closePath();
+        ctx.fill();
+      });
+    }
+
+    function drawActors() {
+      const blur = state.qualityReduced ? CONFIG.SHADOW_BLUR_LOW : CONFIG.SHADOW_BLUR;
+      const leaderId = currentRanks()[0].id;
+      for (const actor of state.actors) {
+        const r = actorRadius(actor);
+        withNeon(actor.color, blur, () => {
+          ctx.beginPath();
+          ctx.arc(actor.x, actor.y, r, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        ctx.save();
+        ctx.fillStyle = "#d9ecff";
+        ctx.globalAlpha = 0.9;
+        ctx.font = "12px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(actor.name, actor.x, actor.y - r - 10);
+        ctx.restore();
+
+        if (actor.id === leaderId) {
+          drawCrown(actor.x, actor.y, r);
+        }
+      }
+    }
+
+    function drawJoystick() {
+      const j = state.joystick;
+      if (!j.active || state.ended) return;
+      ctx.save();
+      ctx.globalAlpha = 0.9;
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#7de2ff";
+      ctx.fillStyle = "rgba(90, 180, 255, 0.15)";
+      ctx.beginPath();
+      ctx.arc(j.baseX, j.baseY, CONFIG.JOYSTICK_MAX, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "rgba(130, 230, 255, 0.9)";
+      ctx.beginPath();
+      ctx.arc(j.knobX, j.knobY, 24, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawHud() {
+      const ranks = currentRanks();
+      const player = state.actors[0];
+      const timeSec = (state.remainingMs / 1000).toFixed(1);
+
+      // Top center timer
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.font = "bold 28px Arial";
+      ctx.fillStyle = "#a7f1ff";
+      ctx.shadowColor = "#4fdfff";
+      ctx.shadowBlur = 14;
+      ctx.fillText(`${timeSec}s`, state.width * 0.5, 42);
+      ctx.restore();
+
+      // Top-right ranking
+      const panelW = 210;
+      const panelX = state.width - panelW - 16;
+      const panelY = 16;
+      ctx.save();
+      ctx.fillStyle = "rgba(12, 18, 34, 0.72)";
+      ctx.fillRect(panelX, panelY, panelW, 128);
+      ctx.strokeStyle = "rgba(120, 210, 255, 0.55)";
+      ctx.strokeRect(panelX, panelY, panelW, 128);
+      ctx.fillStyle = "#9cecff";
+      ctx.font = "bold 14px Arial";
+      ctx.fillText("RANKING", panelX + 12, panelY + 20);
+      ctx.font = "13px Arial";
+      for (let i = 0; i < ranks.length; i += 1) {
+        const a = ranks[i];
+        const y = panelY + 43 + i * 20;
+        const isYou = a.isPlayer;
+        ctx.fillStyle = isYou ? "#ffe87e" : "#d5eaff";
+        ctx.fillText(`${i + 1}. ${a.name}`, panelX + 12, y);
+        ctx.textAlign = "right";
+        ctx.fillText(`${Math.floor(a.score)}`, panelX + panelW - 10, y);
+        ctx.textAlign = "left";
+      }
+      ctx.restore();
+
+      // Bottom-left player stats
+      ctx.save();
+      ctx.fillStyle = "rgba(12, 18, 34, 0.72)";
+      ctx.fillRect(16, state.height - 88, 220, 72);
+      ctx.strokeStyle = "rgba(120, 210, 255, 0.55)";
+      ctx.strokeRect(16, state.height - 88, 220, 72);
+      ctx.fillStyle = "#d8f0ff";
+      ctx.font = "13px Arial";
+      ctx.fillText(`Combo: ${Math.floor(player.combo)}`, 28, state.height - 61);
+      ctx.fillText(`Zoom: ${state.camera.zoom.toFixed(2)}`, 28, state.height - 40);
+      ctx.fillText(`Score: ${Math.floor(player.score)}`, 28, state.height - 19);
+      ctx.restore();
+
+      // Optional FPS marker
+      ctx.save();
+      ctx.font = "12px Arial";
+      ctx.fillStyle = state.qualityReduced ? "#ffb6b6" : "#7ad9ff";
+      ctx.fillText(`FPS ${state.fpsMonitor.currentFps.toFixed(0)}`, 16, 18);
+      ctx.restore();
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, state.width, state.height);
+      ctx.fillStyle = "#0b0b1a";
+      ctx.fillRect(0, 0, state.width, state.height);
+
+      const shakeRatio = state.shake.duration > 0 ? state.shake.timeLeft / state.shake.duration : 0;
+      const shakePower = state.shake.amplitude * shakeRatio;
+      const shakeX = shakePower > 0 ? randRange(-shakePower, shakePower) : 0;
+      const shakeY = shakePower > 0 ? randRange(-shakePower, shakePower) : 0;
+
+      ctx.save();
+      ctx.translate(state.width * 0.5 + shakeX, state.height * 0.5 + shakeY);
+      ctx.scale(state.camera.zoom, state.camera.zoom);
+      ctx.translate(-state.camera.x, -state.camera.y);
+
+      drawBackgroundWorld();
+      drawDots();
+      drawParticles();
+      drawActors();
+      ctx.restore();
+
+      drawHud();
+      drawComboEffects();
+      drawJoystick();
+    }
+
+    // 8) Game Flow
+    function showResultPanel() {
+      const ranks = currentRanks();
+      resultList.innerHTML = "";
+      for (let i = 0; i < ranks.length; i += 1) {
+        const actor = ranks[i];
+        const li = document.createElement("li");
+        if (actor.isPlayer) li.className = "you";
+        const left = document.createElement("span");
+        left.textContent = `${i + 1}. ${actor.name}`;
+        const right = document.createElement("span");
+        right.textContent = `${Math.floor(actor.score)}`;
+        li.append(left, right);
+        resultList.appendChild(li);
+      }
+      resultPanel.style.display = "flex";
+    }
+
+    function hideResultPanel() {
+      resultPanel.style.display = "none";
+    }
+
+    function showStartPanel() {
+      startPanel.style.display = "flex";
+    }
+
+    function hideStartPanel() {
+      startPanel.style.display = "none";
+    }
+
+    function endGame() {
+      if (state.ended) return;
+      state.ended = true;
+      state.running = false;
+      resetJoystick();
+      showResultPanel();
+    }
+
+    restartBtn.addEventListener("click", () => {
+      resetGame();
+    });
+
+    startBtn.addEventListener("click", () => {
+      hideStartPanel();
+      resetGame();
+    });
+
+    // 9) Main Loop
+    function resizeCanvas() {
+      state.width = window.innerWidth;
+      state.height = window.innerHeight;
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+
+    window.addEventListener("resize", resizeCanvas);
+    document.addEventListener("visibilitychange", () => {
+      // Preserve exact timing while avoiding huge delta spikes on resume.
+      if (!document.hidden) {
+        state.lastFrameTimeMs = performance.now();
+      }
+    });
+
+    function loop(nowMs) {
+      if (state.running) {
+        updateGame(nowMs);
+      }
+      render();
+      requestAnimationFrame(loop);
+    }
+
+    resizeCanvas();
+    resetGame();
+    state.running = false;
+    resetJoystick();
+    showStartPanel();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
