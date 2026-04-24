@@ -1,1492 +1,1374 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Neon Pop Sweeper</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Neon Pop Sweeper (Dynamic Vision)</title>
   <style>
-    :root { color-scheme: dark; }
+    :root {
+      --bg-page: #050512;
+      --bg-world: #0b0b1a;
+      --panel: rgba(14, 18, 40, 0.86);
+      --panel-border: rgba(102, 170, 255, 0.45);
+      --text: #eaf2ff;
+      --muted: #98a8d8;
+      --accent: #66f5ff;
+      --danger: #ff496e;
+    }
     * { box-sizing: border-box; }
     html, body {
       margin: 0;
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: #050512;
-      font-family: Arial, Helvetica, sans-serif;
-    }
-    canvas {
-      display: block;
-      width: 100%;
-      height: 100%;
+      background: var(--bg-page);
+      color: var(--text);
+      font-family: Inter, "Pretendard", "Noto Sans KR", sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
       touch-action: none;
-      cursor: crosshair;
     }
-    #startPanel, #joinPanel, #gameStartPanel, #resultPanel {
-      position: fixed;
+    #app { position: relative; width: 100%; height: 100%; }
+    #gameCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+    .overlay {
+      position: absolute;
       inset: 0;
       display: none;
       align-items: center;
       justify-content: center;
-      z-index: 10;
-      color: #e6f6ff;
-      background: rgba(0, 0, 0, 0.56);
+      pointer-events: none;
+      z-index: 20;
     }
-    #startCard, #resultCard {
-      width: min(520px, 92%);
-      background: rgba(15, 19, 35, 0.96);
-      border: 1px solid rgba(120, 210, 255, 0.5);
-      border-radius: 14px;
-      box-shadow: 0 0 28px rgba(90, 210, 255, 0.25);
-      padding: 22px;
+    .overlay.show { display: flex; }
+    .card {
+      pointer-events: auto;
+      width: min(88vw, 640px);
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 20px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45), 0 0 32px rgba(94, 173, 255, 0.28);
+      padding: 28px 26px;
       transform-origin: center center;
-    }
-    #resultCard { width: min(460px, 90%); }
-    #gameStartCard {
-      width: min(420px, 84%);
       text-align: center;
-      color: #b7f3ff;
-      font-size: 52px;
-      font-weight: 800;
-      letter-spacing: 1px;
-      text-shadow: 0 0 18px rgba(107, 232, 255, 0.9);
-      transform-origin: center center;
     }
-    #joinCard {
-      width: min(520px, 92%);
-      background: rgba(12, 17, 30, 0.96);
-      border: 1px solid rgba(140, 232, 255, 0.56);
-      border-radius: 14px;
-      box-shadow: 0 0 28px rgba(90, 210, 255, 0.25);
-      padding: 22px;
-      transform-origin: center center;
-    }
-    #startTitle, #resultTitle, #joinTitle {
-      margin: 0;
-      text-align: center;
-      color: #7fe5ff;
-    }
-    #startSub { margin: 8px 0 14px; text-align: center; color: #c8edff; font-size: 14px; }
-    #joinSub { margin: 8px 0 12px; text-align: center; color: #c8edff; font-size: 14px; }
-    #joinFeed {
-      margin: 0;
-      padding: 0;
-      list-style: none;
-      display: grid;
-      gap: 6px;
-      min-height: 100px;
-      color: #d8ecff;
-      font-size: 14px;
-      line-height: 1.35;
-    }
-    #joinFeed li {
-      padding: 8px 10px;
-      border-radius: 8px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(120, 210, 255, 0.25);
-    }
-    #joinCountdown {
-      margin: 10px 0 8px;
-      text-align: center;
-      color: #9cecff;
-      font-size: 13px;
-      font-weight: 700;
-    }
-    #joinBar {
-      width: 100%;
-      height: 10px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(120, 210, 255, 0.3);
-      overflow: hidden;
-    }
-    #joinBarFill {
-      height: 100%;
-      width: 0%;
-      background: linear-gradient(90deg, #68e8ff, #9cffb7);
-      box-shadow: 0 0 12px rgba(104, 232, 255, 0.55);
-      transition: width 0.08s linear;
-    }
-    #guideList {
-      margin: 0 0 14px;
-      padding-left: 18px;
-      display: grid;
-      gap: 7px;
-      color: #d8ecff;
-      font-size: 14px;
-      line-height: 1.35;
-    }
-    #resultList {
-      margin: 12px 0 18px;
-      padding: 0;
-      list-style: none;
-      display: grid;
-      gap: 8px;
+    h1, h2, p { margin: 0; }
+    .title { font-size: 34px; font-weight: 800; letter-spacing: 0.4px; }
+    .sub { margin-top: 10px; color: var(--muted); line-height: 1.5; }
+    .row { display: flex; gap: 10px; margin-top: 22px; flex-wrap: wrap; justify-content: center; }
+    .btn {
+      border: 1px solid rgba(119, 196, 255, 0.58);
+      background: rgba(21, 42, 81, 0.84);
+      color: #eff7ff;
+      padding: 12px 16px;
+      border-radius: 11px;
       font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
     }
-    #resultList li {
+    .btn.primary {
+      background: linear-gradient(145deg, #2d72ff, #23b7ff);
+      border-color: rgba(198, 230, 255, 0.78);
+      color: #fff;
+    }
+    #hud {
+      position: absolute;
+      inset: 0;
+      z-index: 8;
+      pointer-events: none;
+    }
+    #timer {
+      position: absolute;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 34px;
+      font-weight: 900;
+      text-shadow: 0 0 16px rgba(129, 235, 255, 0.76);
+    }
+    #comboText {
+      position: absolute;
+      top: 170px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-weight: 900;
+      font-size: 26px;
+      text-shadow: 0 0 14px rgba(255, 255, 255, 0.58);
+      opacity: 0;
+      transition: transform 0.12s ease, opacity 0.12s linear;
+      white-space: nowrap;
+    }
+    #ranking {
+      position: absolute;
+      top: 22px;
+      right: 20px;
+      width: 306px;
+      background: rgba(12, 17, 38, 0.8);
+      border: 1px solid rgba(116, 180, 255, 0.5);
+      border-radius: 14px;
+      padding: 12px 14px;
+      transform-origin: top right;
+    }
+    #ranking h3 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      letter-spacing: 0.3px;
+      color: #d5ebff;
+    }
+    .rankLine {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 8px 10px;
-      border-radius: 10px;
-      background: rgba(255, 255, 255, 0.04);
+      font-size: 15px;
+      padding: 5px 0;
+      border-bottom: 1px dashed rgba(112, 141, 206, 0.3);
     }
-    #resultList li.you {
-      border: 1px solid rgba(255, 230, 120, 0.75);
-      background: rgba(255, 230, 120, 0.08);
+    .rankLine:last-child { border-bottom: 0; }
+    .rankName.you { color: #ffe27f; font-weight: 900; }
+    #startOverlay {
+      justify-content: center;
     }
-    button {
+    #startBlock {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      transform-origin: center center;
+      pointer-events: auto;
+    }
+    #startCard { text-align: center; }
+    #startBottomActions { pointer-events: auto; }
+    #joinOverlay .card { width: min(90vw, 720px); }
+    #joinProgressWrap {
+      margin-top: 14px;
       width: 100%;
-      border: 0;
-      border-radius: 10px;
-      padding: 12px;
-      font-size: 16px;
-      font-weight: 700;
-      color: #08111a;
-      background: linear-gradient(180deg, #91f6ff, #43cbff);
-      cursor: pointer;
+      height: 14px;
+      border-radius: 999px;
+      background: rgba(129, 168, 255, 0.2);
+      overflow: hidden;
+      border: 1px solid rgba(110, 154, 255, 0.4);
     }
-    button.secondary {
-      color: #bfefff;
-      border: 1px solid rgba(120, 210, 255, 0.6);
-      background: rgba(30, 62, 92, 0.78);
-    }
-    #fullscreenBtn {
-      position: absolute;
-      left: 50%;
-      top: calc(50% + 165px);
-      transform: translateX(-50%);
-      width: min(240px, 46%);
-      padding: 10px 12px;
-      font-size: 14px;
-      z-index: 12;
-    }
-    #fsHint {
-      position: absolute;
-      left: 50%;
-      top: calc(50% + 212px);
-      transform: translateX(-50%);
-      width: min(320px, 74%);
-      margin: 0;
-      text-align: center;
-      color: #9fdcff;
-      font-size: 12px;
-      line-height: 1.35;
-      z-index: 12;
-    }
-    button:active { transform: translateY(1px); }
-    #joystick {
-      position: fixed;
-      left: 0;
-      top: 0;
-      width: 100%;
+    #joinProgress {
       height: 100%;
-      z-index: 5;
-      touch-action: none;
-      pointer-events: none;
+      width: 0%;
+      background: linear-gradient(90deg, #52f4ff, #4f8dff);
     }
-    #joystick.active { pointer-events: auto; }
+    #joinFeed {
+      margin-top: 14px;
+      min-height: 78px;
+      max-height: 148px;
+      overflow: hidden;
+      color: #d7e8ff;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    #startFxText {
+      font-size: min(9vw, 92px);
+      font-weight: 900;
+      color: #dff7ff;
+      text-shadow: 0 0 28px rgba(97, 238, 255, 0.8);
+      opacity: 0;
+      transform: scale(0.86);
+    }
+    #resultOverlay .card h2 { font-size: 32px; margin-bottom: 12px; }
+    #resultList { margin: 10px 0 0; padding: 0; list-style: none; }
+    #resultList li {
+      display: flex;
+      justify-content: space-between;
+      padding: 7px 0;
+      border-bottom: 1px dashed rgba(110, 140, 210, 0.35);
+    }
+    #resultList li.you { color: #ffe27f; font-weight: 900; }
+    .hint { margin-top: 10px; color: var(--muted); font-size: 13px; text-align: center; }
   </style>
 </head>
 <body>
-  <canvas id="game"></canvas>
-  <div id="joystick"></div>
+  <div id="app">
+    <canvas id="gameCanvas"></canvas>
 
-  <div id="startPanel">
-    <div id="startCard">
-      <h2 id="startTitle">Neon Pop Sweeper</h2>
-      <p id="startSub">Dynamic Vision · 60초까지 점수를 모아 1위에 도전하세요.</p>
-      <ul id="guideList">
-        <li>드래그로 조이스틱 · 또는 WASD / 방향키</li>
-        <li>네온 닷을 모아 콤보와 점수를 올리세요</li>
-        <li>보라 이동 닷 · 붉은 위험 닷에 주의</li>
-      </ul>
-      <button type="button" id="startBtn">게임 시작</button>
+    <div id="hud">
+      <div id="timer">60.0</div>
+      <div id="comboText">COMBO x0</div>
+      <section id="ranking">
+        <h3>RANKING</h3>
+        <div id="rankingBody"></div>
+      </section>
     </div>
-    <button type="button" class="secondary" id="fullscreenBtn">전체화면으로 보기</button>
-    <p id="fsHint"></p>
-  </div>
 
-  <div id="joinPanel">
-    <div id="joinCard">
-      <h2 id="joinTitle">참가자 입장 중...</h2>
-      <p id="joinSub">1/4 참가자 준비</p>
-      <ul id="joinFeed"></ul>
-      <p id="joinCountdown">게임 시작까지 5.0초</p>
-      <div id="joinBar"><div id="joinBarFill"></div></div>
-    </div>
-  </div>
+    <section id="startOverlay" class="overlay show">
+      <div id="startBlock">
+        <div class="card" id="startCard">
+          <h1 class="title">Neon Pop Sweeper</h1>
+          <p class="sub">
+            60초 동안 네온 닷을 모아 최고 점수를 노리세요.<br />
+            이동: 드래그 조이스틱 / WASD / 방향키
+          </p>
+          <div class="row">
+            <button id="startBtn" class="btn primary">게임 시작</button>
+          </div>
+          <p class="hint">전체화면은 선택 사항이며, 게임 시작 버튼과 별개로 동작합니다.</p>
+        </div>
+        <div id="startBottomActions">
+          <button id="fullscreenBtn" class="btn">전체화면</button>
+        </div>
+      </div>
+    </section>
 
-  <div id="gameStartPanel">
-    <div id="gameStartCard">게임 시작!</div>
-  </div>
+    <section id="joinOverlay" class="overlay">
+      <div class="card" id="joinCard">
+        <h2>참가자 입장 중...</h2>
+        <p class="sub" id="joinCountdown">게임 시작까지 5초</p>
+        <div id="joinProgressWrap"><div id="joinProgress"></div></div>
+        <div id="joinFeed"></div>
+      </div>
+    </section>
 
-  <div id="resultPanel">
-    <div id="resultCard">
-      <h2 id="resultTitle">라운드 종료</h2>
-      <ul id="resultList"></ul>
-      <button type="button" id="restartBtn">다시 하기</button>
-    </div>
+    <section id="startFxOverlay" class="overlay">
+      <div id="startFxText">게임 시작!</div>
+    </section>
+
+    <section id="resultOverlay" class="overlay">
+      <div class="card" id="resultCard">
+        <h2>라운드 종료</h2>
+        <ul id="resultList"></ul>
+        <div class="row">
+          <button id="restartBtn" class="btn primary">Restart</button>
+        </div>
+      </div>
+    </section>
   </div>
 
   <script>
-(function () {
-  "use strict";
+    "use strict";
 
-  const CONFIG = {
-    MAP_W: 2000,
-    MAP_H: 2000,
-    SESSION_MS: 60000,
-    BASE_SPEED: 220,
-    BASE_ACTOR_RADIUS: 15,
-    ACTOR_SIZE_MULTIPLIER: 2.0,
-    MAX_COMBO: 50,
-    JOYSTICK_MAX: 80,
-    SPAWN_MIN: 220,
-    SPAWN_TARGET: 250,
-    SPAWN_MAX: 280,
-    SPAWN_INTERVAL: 0.25,
-    SPAWN_SAFE_RADIUS: 120,
-    BOT_RETARGET_INTERVAL: 0.4,
-    CHASER_SPEED_MIN: 78,
-    CHASER_SPEED_MAX: 104,
-    CHASER_LIFETIME_MIN: 6.0,
-    CHASER_LIFETIME_MAX: 8.0,
-    HAZARD_PENALTY_RATE: 0.05,
-    HAZARD_FLASH_SEC: 0.45,
-    HAZARD_SCATTER_MIN_DOTS: 3,
-    HAZARD_SCATTER_MAX_DOTS: 18,
-    HAZARD_SCATTER_LAUNCH_SPEED_MIN: 420,
-    HAZARD_SCATTER_LAUNCH_SPEED_MAX: 680,
-    HAZARD_SCATTER_LAUNCH_SEC: 1.15,
-    COLLECT_OFFSET: 10,
-    COMBO_DECAY_DELAY: 1.2,
-    COMBO_DECAY_PER_SEC: 5,
-    FEVER_SECONDS: 2.5,
-    ZOOM_MIN: 0.2,
-    ZOOM_MAX: 3.0,
-    ZOOM_LERP_ALPHA: 0.1,
-    ZOOM_COMBO_FACTOR: 0.007,
-    CAMERA_CLOSENESS_MULTIPLIER: 1.3,
-    LETTERBOX_COLOR: "#050512",
-    SHADOW_BLUR: 16,
-    SHADOW_BLUR_LOW: 10,
-    PARTICLE_CAP: 140,
-    PLAYER_COLLECT_RADIUS_MULTIPLIER: 1.82,
-    BOT_COLLECT_RADIUS_MULTIPLIER: 0.9,
-    PLAYER_SPEED_MULTIPLIER: 1.0,
-    BOT_SPEED_MULTIPLIER: 0.88,
-    COMBO_CHAIN_WINDOW_SEC: 0.6,
-    COMBO_TEXT_SCREEN_Y: 170,
-    FIXED_VIEW_ASPECT: 16 / 9,
-    REFERENCE_VIEW_WIDTH: 1600,
-    JOIN_TOTAL_SEC: 5.0,
-    JOIN_EVENT_MIN_SEC: 0.4,
-    JOIN_EVENT_MAX_SEC: 4.4,
-    JOIN_BADGE_GAME_SEC: 1.5,
-    GAME_START_FX_SEC: 1.8,
-    FPS_LOW_THRESHOLD: 45,
-    FPS_LOW_HOLD_SEC: 1.0
-  };
-
-  const DOT_TYPES = [
-    { key: "normal", chance: 0.82, baseScore: 10, comboGain: 1, color: "#54e7ff", radius: 5 },
-    { key: "bonus", chance: 0.12, baseScore: 25, comboGain: 2, color: "#7dff8e", radius: 6 },
-    { key: "fever", chance: 0.03, baseScore: 40, comboGain: 4, color: "#ff58d3", radius: 7 },
-    { key: "chaser", chance: 0.02, baseScore: 55, comboGain: 5, color: "#b06bff", radius: 7 },
-    { key: "hazard", chance: 0.01, baseScore: 0, comboGain: 0, color: "#ff4d4f", radius: 7 }
-  ];
-
-  const ACTOR_COLORS = ["#4fdfff", "#ff7ad7", "#a6ff68", "#ffb45c"];
-  const PLAYER_NAME = "YOU";
-  const BOT_NAME_POOL = [
-    "NeoFox", "MintBug", "RinRin", "JAY_92", "BlueM", "Kite",
-    "Dodo9", "Momo", "PixelJay", "Haru", "Nabi_", "Lime77"
-  ];
-
-  const canvas = document.getElementById("game");
-  const ctx = canvas.getContext("2d");
-  const startPanel = document.getElementById("startPanel");
-  const startCard = document.getElementById("startCard");
-  const fullscreenBtn = document.getElementById("fullscreenBtn");
-  const startBtn = document.getElementById("startBtn");
-  const fsHint = document.getElementById("fsHint");
-  const resultPanel = document.getElementById("resultPanel");
-  const resultCard = document.getElementById("resultCard");
-  const resultList = document.getElementById("resultList");
-  const restartBtn = document.getElementById("restartBtn");
-  const joinPanel = document.getElementById("joinPanel");
-  const joinCard = document.getElementById("joinCard");
-  const joinTitle = document.getElementById("joinTitle");
-  const joinSub = document.getElementById("joinSub");
-  const joinFeed = document.getElementById("joinFeed");
-  const joinCountdown = document.getElementById("joinCountdown");
-  const joinBarFill = document.getElementById("joinBarFill");
-  const gameStartPanel = document.getElementById("gameStartPanel");
-  const gameStartCard = document.getElementById("gameStartCard");
-  const joystickEl = document.getElementById("joystick");
-
-  const state = {
-    dpr: 1,
-    viewScale: 1,
-    gameView: { x: 0, y: 0, width: 1600, height: 900 },
-    camX: 1000,
-    camY: 1000,
-    zoom: 3,
-    targetZoom: 3,
-    actors: [],
-    dots: [],
-    particles: [],
-    comboEffects: [],
-    elapsedMs: 0,
-    remainingMs: CONFIG.SESSION_MS,
-    startTimeMs: 0,
-    lastFrameTimeMs: 0,
-    running: false,
-    ended: false,
-    joinSceneActive: false,
-    joinElapsedMs: 0,
-    joinEvents: [],
-    joinNextEventIndex: 0,
-    gameStartActive: false,
-    gameStartElapsedMs: 0,
-    gameStartReady: false,
-    gameStartStartMs: 0,
-    qualityReduced: false,
-    fpsLowAccum: 0,
-    lastFpsTick: 0,
-    frameCount: 0,
-    spawnTimer: 0,
-    pointerDown: false,
-    pointerId: null,
-    joyCx: 0,
-    joyCy: 0,
-    joyDx: 0,
-    joyDy: 0,
-    keys: {}
-  };
-
-  function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
-  function lerp(a, b, t) { return a + (b - a) * t; }
-  function randRange(a, b) { return a + Math.random() * (b - a); }
-  function distSq(ax, ay, bx, by) { const dx = bx - ax; const dy = by - ay; return dx * dx + dy * dy; }
-  function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
-
-  function pickBotNames(count) {
-    const pool = [...BOT_NAME_POOL];
-    for (let i = pool.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [pool[i], pool[j]] = [pool[j], pool[i]];
-    }
-    return pool.slice(0, count);
-  }
-
-  function newId() {
-    if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
-    return `${Date.now()}_${Math.random().toString(36).slice(2)}`;
-  }
-
-  function actorRadius(actor) {
-    return (CONFIG.BASE_ACTOR_RADIUS + actor.combo * 1.0) * CONFIG.ACTOR_SIZE_MULTIPLIER;
-  }
-
-  function actorCollectRadius(actor) {
-    const r = actorRadius(actor);
-    const base = r + CONFIG.COLLECT_OFFSET;
-    const mul = actor.isPlayer ? CONFIG.PLAYER_COLLECT_RADIUS_MULTIPLIER : CONFIG.BOT_COLLECT_RADIUS_MULTIPLIER;
-    let rr = base * mul;
-    const nowSec = state.elapsedMs / 1000;
-    if (actor.isPlayer && nowSec < actor.feverUntil) rr *= 1.35;
-    return rr;
-  }
-
-  function actorSpeedMul(actor) {
-    let m = actor.isPlayer ? CONFIG.PLAYER_SPEED_MULTIPLIER : CONFIG.BOT_SPEED_MULTIPLIER;
-    const nowSec = state.elapsedMs / 1000;
-    if (actor.isPlayer && nowSec < actor.feverUntil) m *= 1.1;
-    return m;
-  }
-
-  function createActor(opts) {
-    return {
-      id: opts.id,
-      name: opts.name,
-      isPlayer: opts.isPlayer,
-      color: opts.color,
-      x: opts.x,
-      y: opts.y,
-      anchorX: opts.x,
-      anchorY: opts.y,
-      vx: 0,
-      vy: 0,
-      score: 0,
-      combo: 0,
-      comboChainCount: 0,
-      lastCollectSec: -999,
-      lastChainResetSec: -999,
-      scoreReachedAt: 0,
-      feverUntil: 0,
-      hazardFlashUntil: 0,
-      botRetargetAt: 0,
-      botTargetX: opts.x,
-      botTargetY: opts.y,
-      joined: opts.isPlayer === true,
-      joinAnimating: false,
-      joinAnimStartSec: 0,
-      joinAnimDurationSec: 0.65,
-      joinFromX: opts.x,
-      joinFromY: opts.y,
-      joinBadgeUntilSec: 0
+    const CONFIG = {
+      SESSION_MS: 60000,
+      MAP_W: 2000,
+      MAP_H: 2000,
+      BASE_SPEED: 220,
+      PLAYER_SPEED_MUL: 1.0,
+      BOT_SPEED_MUL: 0.88,
+      PLAYER_GAIN_MUL: 1.82,
+      BOT_GAIN_MUL: 0.9,
+      MAX_COMBO: 999,
+      MAX_SCALE_LEVEL: 50,
+      SCALE_GAIN_MUL: 0.35,
+      COMBO_DECAY_DELAY_MS: 1200,
+      COMBO_DECAY_PER_SEC: 5,
+      SCALE_DECAY_DELAY_MS: 1200,
+      SCALE_DECAY_PER_SEC: 5,
+      CHAIN_WINDOW_MS: 600,
+      FEVER_MS: 2500,
+      PICKUP_OFFSET: 14,
+      DOT_MIN: 220,
+      DOT_MAX: 280,
+      HAZARD_MAX_ACTIVE: 3,
+      DOT_RESPAWN_INTERVAL_MS: 250,
+      DOT_SPAWN_SAFE_RADIUS: 120,
+      JOIN_TOTAL_MS: 5000,
+      JOIN_MIN_MS: 400,
+      JOIN_MAX_MS: 4400,
+      JOIN_SLIDE_MS: 650,
+      GAME_START_FX_MS: 1800,
+      CHASER_SPEED_MIN: 78,
+      CHASER_SPEED_MAX: 104,
+      CHASER_LIFE_MIN_MS: 6000,
+      CHASER_LIFE_MAX_MS: 8000,
+      AI_HAZARD_DETECT_RADIUS: 230,
+      AI_HAZARD_AVOID_CHANCE: 0.68,
+      HAZARD_LOSS_RATE: 0.05,
+      HAZARD_LAUNCH_MS: 1150,
+      MAX_PARTICLES: 140,
+      TARGET_FPS_DROP: 45
     };
-  }
 
-  function randomOffscreenSpawnPoint() {
-    const pad = 180;
-    const side = Math.floor(Math.random() * 4);
-    const t = Math.random();
-    if (side === 0) return { x: -pad, y: t * CONFIG.MAP_H };
-    if (side === 1) return { x: CONFIG.MAP_W + pad, y: t * CONFIG.MAP_H };
-    if (side === 2) return { x: t * CONFIG.MAP_W, y: -pad };
-    return { x: t * CONFIG.MAP_W, y: CONFIG.MAP_H + pad };
-  }
-
-  function pickDotType() {
-    const roll = Math.random();
-    let acc = 0;
-    for (const t of DOT_TYPES) {
-      acc += t.chance;
-      if (roll <= acc) return t;
-    }
-    return DOT_TYPES[0];
-  }
-
-  function spawnOneDot() {
-    const spec = pickDotType();
-    let vx = 0;
-    let vy = 0;
-    let ttlSec = -1;
-    if (spec.key === "chaser") {
-      const ang = Math.random() * Math.PI * 2;
-      const spd = randRange(CONFIG.CHASER_SPEED_MIN, CONFIG.CHASER_SPEED_MAX);
-      vx = Math.cos(ang) * spd;
-      vy = Math.sin(ang) * spd;
-      ttlSec = randRange(CONFIG.CHASER_LIFETIME_MIN, CONFIG.CHASER_LIFETIME_MAX);
-    }
-    let x = 0;
-    let y = 0;
-    let tries = 0;
-    while (tries < 80) {
-      tries++;
-      x = randRange(40, CONFIG.MAP_W - 40);
-      y = randRange(40, CONFIG.MAP_H - 40);
-      let ok = true;
-      for (const a of state.actors) {
-        if (distSq(x, y, a.x, a.y) < CONFIG.SPAWN_SAFE_RADIUS * CONFIG.SPAWN_SAFE_RADIUS) {
-          ok = false;
-          break;
-        }
-      }
-      if (ok) break;
-    }
-    state.dots.push({
-      id: newId(),
-      x, y,
-      type: spec.key,
-      baseScore: spec.baseScore,
-      comboGain: spec.comboGain,
-      color: spec.color,
-      radius: spec.radius,
-      vx, vy, ttlSec,
-      launchVx: 0,
-      launchVy: 0,
-      launchSec: 0,
-      noCollectUntilSec: 0
-    });
-  }
-
-  function initDots(n) {
-    state.dots.length = 0;
-    for (let i = 0; i < n; i++) spawnOneDot();
-  }
-
-  function buildActorsForRound() {
-    const cx = CONFIG.MAP_W * 0.5;
-    const cy = CONFIG.MAP_H * 0.5;
-    const names = pickBotNames(3);
-    const offsets = [
-      { x: -140, y: -90 },
-      { x: 150, y: -40 },
-      { x: -40, y: 130 }
+    const DOT_TYPES = [
+      { id: "normal", weight: 82, base: 10, comboGain: 1, color: "#35f7ff" },
+      { id: "bonus", weight: 12, base: 25, comboGain: 2, color: "#8dff73" },
+      { id: "fever", weight: 3, base: 40, comboGain: 4, color: "#ff67de" },
+      { id: "chaser", weight: 2, base: 55, comboGain: 5, color: "#ae78ff" },
+      { id: "hazard", weight: 1, base: 0, comboGain: 0, color: "#ff416b" }
     ];
-    const actors = [];
-    actors.push(createActor({
-      id: "p1",
-      name: PLAYER_NAME,
-      isPlayer: true,
-      color: ACTOR_COLORS[0],
-      x: cx,
-      y: cy
-    }));
-    for (let i = 0; i < 3; i++) {
-      const ox = offsets[i].x;
-      const oy = offsets[i].y;
-      actors.push(createActor({
-        id: `b${i + 1}`,
-        name: names[i],
-        isPlayer: false,
-        color: ACTOR_COLORS[i + 1],
-        x: cx + ox,
-        y: cy + oy
-      }));
-    }
-    state.actors = actors;
-  }
 
-  function scheduleJoinIntro() {
-    const maxJoinSec = Math.min(CONFIG.JOIN_EVENT_MAX_SEC, CONFIG.JOIN_TOTAL_SEC - 0.2);
-    const events = [];
-    const botActors = state.actors.filter((a) => !a.isPlayer);
-    for (const bot of botActors) {
-      bot.joined = false;
-      bot.x = bot.anchorX;
-      bot.y = bot.anchorY;
-      bot.joinAnimating = false;
-      const atSec = randRange(CONFIG.JOIN_EVENT_MIN_SEC, maxJoinSec);
-      events.push({
-        atSec,
-        actorId: bot.id,
-        text: `${bot.name} 님이 합류했습니다`
-      });
-    }
-    events.sort((a, b) => a.atSec - b.atSec);
-    state.joinEvents = events;
-    state.joinNextEventIndex = 0;
-    joinFeed.innerHTML = "";
-    const player = state.actors.find((a) => a.isPlayer);
-    if (player) {
-      player.joined = true;
-      const li = document.createElement("li");
-      li.textContent = `${player.name} 님이 합류했습니다`;
-      joinFeed.appendChild(li);
-    }
-    joinSub.textContent = "1/4 참가자 준비";
-  }
+    const BOT_NAME_POOL = ["NeoFox", "MintBug", "RinRin", "JAY_92", "Lumi", "Skyle", "Ariu", "NoraQ"];
 
-  function updateJoinIntroEvents(nowSec) {
-    while (
-      state.joinNextEventIndex < state.joinEvents.length &&
-      nowSec >= state.joinEvents[state.joinNextEventIndex].atSec
-    ) {
-      const ev = state.joinEvents[state.joinNextEventIndex];
-      const li = document.createElement("li");
-      li.textContent = ev.text;
-      joinFeed.appendChild(li);
-      const joinedActor = state.actors.find((a) => a.id === ev.actorId);
-      if (joinedActor) {
-        const from = randomOffscreenSpawnPoint();
-        joinedActor.joined = true;
-        joinedActor.joinAnimating = true;
-        joinedActor.joinAnimStartSec = nowSec;
-        joinedActor.joinFromX = from.x;
-        joinedActor.joinFromY = from.y;
-        joinedActor.x = from.x;
-        joinedActor.y = from.y;
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const els = {
+      startOverlay: document.getElementById("startOverlay"),
+      startBlock: document.getElementById("startBlock"),
+      joinOverlay: document.getElementById("joinOverlay"),
+      startFxOverlay: document.getElementById("startFxOverlay"),
+      resultOverlay: document.getElementById("resultOverlay"),
+      startCard: document.getElementById("startCard"),
+      joinCard: document.getElementById("joinCard"),
+      resultCard: document.getElementById("resultCard"),
+      timer: document.getElementById("timer"),
+      comboText: document.getElementById("comboText"),
+      ranking: document.getElementById("ranking"),
+      rankingBody: document.getElementById("rankingBody"),
+      joinCountdown: document.getElementById("joinCountdown"),
+      joinProgress: document.getElementById("joinProgress"),
+      joinFeed: document.getElementById("joinFeed"),
+      startFxText: document.getElementById("startFxText"),
+      resultList: document.getElementById("resultList"),
+      startBottomActions: document.getElementById("startBottomActions"),
+      startBtn: document.getElementById("startBtn"),
+      restartBtn: document.getElementById("restartBtn"),
+      fullscreenBtn: document.getElementById("fullscreenBtn")
+    };
+
+    let dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+    let gameView = { x: 0, y: 0, width: 1600, height: 900 };
+    let viewScale = 1;
+
+    const state = {
+      phase: "start",
+      now: performance.now(),
+      lastFrame: performance.now(),
+      startTime: 0,
+      joinStart: 0,
+      startFxStart: 0,
+      fpsEMA: 60,
+      lowFpsAccMs: 0,
+      particleQualityMul: 1,
+      actors: [],
+      player: null,
+      dots: [],
+      particles: [],
+      camX: CONFIG.MAP_W / 2,
+      camY: CONFIG.MAP_H / 2,
+      zoom: 3.0,
+      targetZoom: 3.0,
+      nextDotId: 1,
+      nextParticleId: 1,
+      rankings: [],
+      uiChainUntil: 0,
+      uiChainCount: 0,
+      joinFeed: [],
+      dotRespawnTick: 0,
+      pointer: {
+        active: false,
+        id: null,
+        sx: 0,
+        sy: 0,
+        x: 0,
+        y: 0,
+        nx: 0,
+        ny: 0
+      },
+      keys: {
+        up: false,
+        down: false,
+        left: false,
+        right: false
       }
-      joinSub.textContent = `${2 + state.joinNextEventIndex}/4 참가자 준비`;
-      state.joinNextEventIndex += 1;
-    }
-  }
+    };
 
-  function updateJoinAnimations(nowSec) {
-    for (const actor of state.actors) {
-      if (!actor.joinAnimating) continue;
-      const t = (nowSec - actor.joinAnimStartSec) / actor.joinAnimDurationSec;
-      if (t >= 1) {
-        actor.joinAnimating = false;
-        actor.x = actor.anchorX;
-        actor.y = actor.anchorY;
-        continue;
+    function clamp(v, min, max) {
+      return Math.max(min, Math.min(max, v));
+    }
+
+    function rand(min, max) {
+      return min + Math.random() * (max - min);
+    }
+
+    function randInt(min, max) {
+      return Math.floor(rand(min, max + 1));
+    }
+
+    function easeOutCubic(t) {
+      return 1 - Math.pow(1 - t, 3);
+    }
+
+    function pickDotType() {
+      const hazardCount = state.dots.filter((d) => d.type === "hazard").length;
+      if (hazardCount >= CONFIG.HAZARD_MAX_ACTIVE) {
+        const rollNoHazard = Math.random() * 99;
+        let accNoHazard = 0;
+        for (const t of DOT_TYPES) {
+          if (t.id === "hazard") continue;
+          accNoHazard += t.weight;
+          if (rollNoHazard <= accNoHazard) return t.id;
+        }
+        return "normal";
       }
-      const e = easeOutCubic(t);
-      actor.x = lerp(actor.joinFromX, actor.anchorX, e);
-      actor.y = lerp(actor.joinFromY, actor.anchorY, e);
+
+      const roll = Math.random() * 100;
+      let acc = 0;
+      for (const t of DOT_TYPES) {
+        acc += t.weight;
+        if (roll <= acc) return t.id;
+      }
+      return "normal";
     }
-  }
 
-  function hideJoinPanel() {
-    joinPanel.style.display = "none";
-  }
-
-  function showJoinPanel() {
-    joinPanel.style.display = "flex";
-  }
-
-  function hideGameStartPanel() {
-    gameStartPanel.style.display = "none";
-  }
-
-  function showGameStartPanel() {
-    gameStartPanel.style.display = "flex";
-    gameStartCard.style.opacity = "1";
-    gameStartCard.style.transform = "scale(1.08)";
-  }
-
-  function startGameStartScene(nowMs) {
-    state.gameStartActive = true;
-    state.gameStartReady = false;
-    state.gameStartElapsedMs = 0;
-    state.gameStartStartMs = nowMs;
-    state.lastFrameTimeMs = nowMs;
-    showGameStartPanel();
-  }
-
-  function updateGameStartScene(nowMs) {
-    const dt = clamp((nowMs - state.lastFrameTimeMs) / 1000, 0, 0.05);
-    state.lastFrameTimeMs = nowMs;
-    state.gameStartElapsedMs += dt * 1000;
-    const totalMs = CONFIG.GAME_START_FX_SEC * 1000;
-    const holdMs = 700;
-    const fadeSpanMs = Math.max(1, totalMs - holdMs);
-    let opacity = 1;
-    if (state.gameStartElapsedMs > holdMs) {
-      const fadeT = clamp((state.gameStartElapsedMs - holdMs) / fadeSpanMs, 0, 1);
-      opacity = 1 - fadeT;
+    function dotDef(type) {
+      return DOT_TYPES.find((d) => d.id === type);
     }
-    const pulseT = clamp(state.gameStartElapsedMs / totalMs, 0, 1);
-    const scale = 1.08 - pulseT * 0.08;
-    gameStartCard.style.opacity = opacity.toFixed(3);
-    gameStartCard.style.transform = `scale(${scale.toFixed(3)})`;
-    if (state.gameStartElapsedMs >= totalMs) {
-      state.gameStartElapsedMs = totalMs;
-      state.gameStartReady = true;
+
+    function actorRadius(actor) {
+      return (15 + actor.scaleLevel * 1.0) * 2.0;
     }
-  }
 
-  function beginGameplay(nowMs) {
-    hideGameStartPanel();
-    state.gameStartActive = false;
-    for (const a of state.actors) {
-      a.joined = true;
-      a.joinAnimating = false;
-      a.x = a.anchorX;
-      a.y = a.anchorY;
-      a.score = 0;
-      a.combo = 0;
-      a.comboChainCount = 0;
-      a.lastCollectSec = -999;
-      a.feverUntil = 0;
-      a.hazardFlashUntil = 0;
-      a.scoreReachedAt = 0;
+    function actorPickupRadius(actor) {
+      return actorRadius(actor) + CONFIG.PICKUP_OFFSET;
     }
-    state.dots.length = 0;
-    state.particles.length = 0;
-    state.comboEffects.length = 0;
-    initDots(220);
-    state.spawnTimer = 0;
-    state.elapsedMs = 0;
-    state.remainingMs = CONFIG.SESSION_MS;
-    state.startTimeMs = nowMs;
-    state.lastFrameTimeMs = nowMs;
-    state.ended = false;
-    state.running = true;
-    joystickEl.classList.add("active");
-  }
 
-  function startJoinScene() {
-    resultPanel.style.display = "none";
-    startPanel.style.display = "none";
-    state.running = false;
-    state.ended = false;
-    state.joinSceneActive = true;
-    state.joinElapsedMs = 0;
-    state.gameStartActive = false;
-    state.gameStartReady = false;
-    buildActorsForRound();
-    scheduleJoinIntro();
-    joinBarFill.style.width = "0%";
-    showJoinPanel();
-    state.lastFrameTimeMs = performance.now();
-  }
+    function resetRun() {
+      state.actors = [];
+      state.dots = [];
+      state.particles = [];
+      state.rankings = [];
+      state.joinFeed = [];
+      state.uiChainUntil = 0;
+      state.uiChainCount = 0;
+      state.dotRespawnTick = 0;
+      state.nextDotId = 1;
+      state.nextParticleId = 1;
+      state.camX = CONFIG.MAP_W / 2;
+      state.camY = CONFIG.MAP_H / 2;
+      state.zoom = 3.0;
+      state.targetZoom = 3.0;
+      state.lowFpsAccMs = 0;
+      state.particleQualityMul = 1;
+      state.pointer.active = false;
+      state.pointer.id = null;
 
-  function emitCollectionParticles(dot) {
-    const qualityMul = state.qualityReduced ? 0.7 : 1.0;
-    const tier = {
-      normal: { count: 8, speedMin: 100, speedMax: 420, lifeMin: 0.35, lifeMax: 0.6, sizeMin: 2, sizeMax: 6, colors: [dot.color, "#9fefff"] },
-      bonus: { count: 12, speedMin: 140, speedMax: 500, lifeMin: 0.42, lifeMax: 0.72, sizeMin: 2.5, sizeMax: 7.5, colors: [dot.color, "#c9ff9a", "#7dff8e"] },
-      fever: { count: 18, speedMin: 180, speedMax: 600, lifeMin: 0.48, lifeMax: 0.82, sizeMin: 3, sizeMax: 9.5, colors: [dot.color, "#ff8ee2", "#ffd0ff"] },
-      chaser: { count: 16, speedMin: 170, speedMax: 580, lifeMin: 0.45, lifeMax: 0.8, sizeMin: 2.8, sizeMax: 8.8, colors: [dot.color, "#d4a8ff", "#f0dcff"] },
-      hazard: { count: 14, speedMin: 150, speedMax: 540, lifeMin: 0.4, lifeMax: 0.75, sizeMin: 2.6, sizeMax: 8.2, colors: [dot.color, "#ff9b66", "#ffd2b8"] }
-    }[dot.type] || { count: 8, speedMin: 100, speedMax: 420, lifeMin: 0.35, lifeMax: 0.6, sizeMin: 2, sizeMax: 6, colors: [dot.color] };
+      const player = makeActor("YOU", true, CONFIG.MAP_W * 0.5, CONFIG.MAP_H * 0.5);
+      state.player = player;
+      state.actors.push(player);
 
-    const count = Math.floor(tier.count * qualityMul * 2.0);
-    const bigCount = Math.max(1, Math.floor(count * 0.28));
+      const picked = [...BOT_NAME_POOL].sort(() => Math.random() - 0.5).slice(0, 3);
+      for (let i = 0; i < 3; i++) {
+        const angle = (Math.PI * 2 * i) / 3;
+        const bot = makeActor(
+          picked[i],
+          false,
+          CONFIG.MAP_W * 0.5 + Math.cos(angle) * 120,
+          CONFIG.MAP_H * 0.5 + Math.sin(angle) * 120
+        );
+        bot.joined = false;
+        bot.joinAtMs = rand(CONFIG.JOIN_MIN_MS, Math.min(CONFIG.JOIN_MAX_MS, CONFIG.JOIN_TOTAL_MS - 200));
+        bot.joinPosStart = null;
+        state.actors.push(bot);
+      }
 
-    for (let i = 0; i < count; i += 1) {
-      if (state.particles.length >= CONFIG.PARTICLE_CAP) break;
-      const angle = Math.random() * Math.PI * 2;
-      const speed = randRange(tier.speedMin, tier.speedMax);
-      const life = randRange(tier.lifeMin, tier.lifeMax);
-      state.particles.push({
-        x: dot.x,
-        y: dot.y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        life,
-        maxLife: life,
-        size: randRange(tier.sizeMin, tier.sizeMax) * 1.2,
-        color: tier.colors[Math.floor(Math.random() * tier.colors.length)]
-      });
+      for (let i = 0; i < CONFIG.DOT_MIN; i++) {
+        state.dots.push(makeDot(pickDotType()));
+      }
+      refreshRankings();
     }
-    for (let i = 0; i < bigCount; i += 1) {
-      if (state.particles.length >= CONFIG.PARTICLE_CAP) break;
-      const angle = Math.random() * Math.PI * 2;
-      const speed = randRange(tier.speedMin * 1.1, tier.speedMax * 1.35);
-      const life = randRange(tier.lifeMin * 0.9, tier.lifeMax * 1.1);
-      state.particles.push({
-        x: dot.x,
-        y: dot.y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        life,
-        maxLife: life,
-        size: randRange(tier.sizeMax * 0.95, tier.sizeMax * 1.5),
-        color: tier.colors[Math.floor(Math.random() * tier.colors.length)]
-      });
-    }
-  }
 
-  function comboColorForCount(chainCount) {
-    if (chainCount <= 15) return "#f2f7ff";
-    if (chainCount <= 30) return "#7ec8ff";
-    if (chainCount <= 45) return "#ffe566";
-    if (chainCount <= 60) return "#ff7a7a";
-    return "#e0a6ff";
-  }
-
-  function comboTierForCount(chainCount) {
-    return Math.min(4, Math.floor((chainCount - 1) / 15));
-  }
-
-  function emitComboEffect(chainCount) {
-    const tier = comboTierForCount(chainCount);
-    const sizeMul = 1 + tier * 0.1;
-    state.comboEffects.length = 0;
-    state.comboEffects.push({
-      life: 0.9,
-      maxLife: 0.9,
-      scale: 1.24 * sizeMul,
-      fontSize: 26 * sizeMul,
-      text: `COMBO x${chainCount}`,
-      color: comboColorForCount(chainCount)
-    });
-  }
-
-  function scatterPenaltyDots(actor, lostScore) {
-    const count = clamp(
-      Math.ceil(lostScore / 12),
-      CONFIG.HAZARD_SCATTER_MIN_DOTS,
-      CONFIG.HAZARD_SCATTER_MAX_DOTS
-    );
-    const dotScores = [];
-    let remaining = lostScore;
-    for (let i = 0; i < count; i += 1) {
-      const restDots = count - i;
-      const share = Math.max(1, Math.floor(remaining / restDots));
-      dotScores.push(share);
-      remaining -= share;
-    }
-    if (remaining > 0) dotScores[dotScores.length - 1] += remaining;
-    const burstCount = clamp(count * 3, 10, 30);
-    for (let i = 0; i < burstCount; i += 1) {
-      if (state.particles.length >= CONFIG.PARTICLE_CAP) break;
-      const ang = Math.random() * Math.PI * 2;
-      const spd = randRange(120, 360);
-      const life = randRange(0.25, 0.5);
-      state.particles.push({
-        x: actor.x,
-        y: actor.y,
-        vx: Math.cos(ang) * spd,
-        vy: Math.sin(ang) * spd,
-        life,
-        maxLife: life,
-        size: randRange(2.5, 6.5),
-        color: Math.random() < 0.6 ? "#ff4d4f" : "#ff9b66"
-      });
-    }
-    const nowSec = state.elapsedMs / 1000;
-    for (let i = 0; i < count; i += 1) {
-      const angle = (Math.PI * 2 * i) / count + randRange(-0.2, 0.2);
-      const launchSpeed = randRange(
-        CONFIG.HAZARD_SCATTER_LAUNCH_SPEED_MIN,
-        CONFIG.HAZARD_SCATTER_LAUNCH_SPEED_MAX
-      );
-      state.dots.push({
-        id: newId(),
-        x: actor.x,
-        y: actor.y,
-        type: "normal",
-        baseScore: dotScores[i],
-        comboGain: 1,
-        color: "#54e7ff",
-        radius: 5,
+    function makeActor(name, isPlayer, x, y) {
+      return {
+        id: isPlayer ? "player" : "bot_" + Math.random().toString(36).slice(2, 8),
+        name,
+        isPlayer,
+        x,
+        y,
         vx: 0,
         vy: 0,
-        ttlSec: -1,
-        launchVx: Math.cos(angle) * launchSpeed,
-        launchVy: Math.sin(angle) * launchSpeed,
-        launchSec: CONFIG.HAZARD_SCATTER_LAUNCH_SEC,
-        noCollectUntilSec: nowSec + CONFIG.HAZARD_SCATTER_LAUNCH_SEC
+        score: 0,
+        combo: 0,
+        scaleLevel: 0,
+        chainLastCollectMs: 0,
+        lastCollectMs: 0,
+        feverUntilMs: 0,
+        lastScoreUpdateMs: performance.now(),
+        targetDotId: null,
+        aiRetargetMs: 0,
+        aiWobblePhase: Math.random() * Math.PI * 2,
+        aiJitterX: 0,
+        aiJitterY: 0,
+        aiJitterUntilMs: 0,
+        aiHazardDecisionUntilMs: 0,
+        aiAvoidHazardUntilMs: 0,
+        aiAvoidX: 0,
+        aiAvoidY: 0,
+        joined: true,
+        joinAtMs: 0,
+        joinPosStart: null,
+        joinTs: 0,
+        flashUntilMs: 0
+      };
+    }
+
+    function randomSpawnPoint() {
+      return { x: rand(30, CONFIG.MAP_W - 30), y: rand(30, CONFIG.MAP_H - 30) };
+    }
+
+    function isSpawnSafe(pos) {
+      for (const a of state.actors) {
+        const dx = a.x - pos.x;
+        const dy = a.y - pos.y;
+        if (dx * dx + dy * dy < CONFIG.DOT_SPAWN_SAFE_RADIUS * CONFIG.DOT_SPAWN_SAFE_RADIUS) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    function makeDot(type) {
+      const p = findSafeSpawn();
+      const d = {
+        id: state.nextDotId++,
+        type,
+        x: p.x,
+        y: p.y,
+        size: type === "hazard" ? 14 : type === "chaser" ? 12 : 10,
+        vx: 0,
+        vy: 0,
+        lifeLeftMs: 0,
+        launchUntilMs: 0,
+        spawnedMs: performance.now()
+      };
+      if (type === "chaser") {
+        const speed = rand(CONFIG.CHASER_SPEED_MIN, CONFIG.CHASER_SPEED_MAX);
+        const a = rand(0, Math.PI * 2);
+        d.vx = Math.cos(a) * speed;
+        d.vy = Math.sin(a) * speed;
+        d.lifeLeftMs = rand(CONFIG.CHASER_LIFE_MIN_MS, CONFIG.CHASER_LIFE_MAX_MS);
+      }
+      return d;
+    }
+
+    function findSafeSpawn() {
+      for (let i = 0; i < 30; i++) {
+        const p = randomSpawnPoint();
+        if (isSpawnSafe(p)) return p;
+      }
+      return randomSpawnPoint();
+    }
+
+    function beginJoinPhase() {
+      resetRun();
+      state.phase = "join";
+      state.joinStart = state.now;
+      showOverlay("join");
+      els.joinFeed.innerHTML = "";
+      state.joinFeed.push("YOU 입장 완료");
+      syncJoinFeed();
+    }
+
+    function beginStartFx() {
+      state.phase = "startfx";
+      state.startFxStart = state.now;
+      showOverlay("startfx");
+    }
+
+    function beginPlaying() {
+      state.phase = "playing";
+      state.startTime = state.now;
+      showOverlay("none");
+    }
+
+    function beginResult() {
+      state.phase = "ended";
+      showOverlay("result");
+      refreshRankings();
+      renderResultList();
+    }
+
+    function showOverlay(type) {
+      els.startOverlay.classList.toggle("show", type === "start");
+      els.joinOverlay.classList.toggle("show", type === "join");
+      els.startFxOverlay.classList.toggle("show", type === "startfx");
+      els.resultOverlay.classList.toggle("show", type === "result");
+    }
+
+    function syncJoinFeed() {
+      els.joinFeed.innerHTML = state.joinFeed.slice(-6).map((line) => "<div>" + line + "</div>").join("");
+    }
+
+    function beginStartScreen() {
+      state.phase = "start";
+      showOverlay("start");
+    }
+
+    function refreshRankings() {
+      state.rankings = [...state.actors].sort((a, b) => {
+        if (Math.floor(a.score) !== Math.floor(b.score)) return Math.floor(b.score) - Math.floor(a.score);
+        return a.lastScoreUpdateMs - b.lastScoreUpdateMs;
       });
     }
-  }
 
-  function applyCollection(actor, dot) {
-    const nowSec = state.elapsedMs / 1000;
-    if (dot.type === "hazard") {
-      const actualLost = Math.min(actor.score, Math.floor(actor.score * CONFIG.HAZARD_PENALTY_RATE));
-      actor.score = Math.max(0, actor.score - actualLost);
-      actor.scoreReachedAt = state.elapsedMs;
-      actor.hazardFlashUntil = nowSec + CONFIG.HAZARD_FLASH_SEC;
-      if (actualLost > 0) scatterPenaltyDots(actor, actualLost);
-      emitCollectionParticles(dot);
-      return;
+    function renderRankingPanel() {
+      refreshRankings();
+      const html = state.rankings.map((a, i) => {
+        const you = a.isPlayer ? "you" : "";
+        return (
+          '<div class="rankLine">' +
+          '<span class="rankName ' + you + '">' + (i + 1) + ". " + a.name + "</span>" +
+          "<strong>" + Math.floor(a.score) + "</strong>" +
+          "</div>"
+        );
+      }).join("");
+      els.rankingBody.innerHTML = html;
     }
-    const inChainWindow = nowSec - actor.lastCollectSec <= CONFIG.COMBO_CHAIN_WINDOW_SEC;
-    actor.comboChainCount = inChainWindow ? actor.comboChainCount + 1 : 1;
-    actor.combo = Math.min(CONFIG.MAX_COMBO, actor.combo + dot.comboGain);
-    actor.score += dot.baseScore + actor.combo * 2;
-    actor.lastCollectSec = nowSec;
-    actor.scoreReachedAt = state.elapsedMs;
-    if (dot.type === "fever") actor.feverUntil = nowSec + CONFIG.FEVER_SECONDS;
-    emitCollectionParticles(dot);
-    if (actor.isPlayer && actor.comboChainCount >= 2) emitComboEffect(actor.comboChainCount);
-  }
 
-  function updateCollections() {
-    const nowSec = state.elapsedMs / 1000;
-    for (const actor of state.actors) {
-      const collectR = actorCollectRadius(actor);
-      for (let i = state.dots.length - 1; i >= 0; i -= 1) {
-        const dot = state.dots[i];
-        if ((dot.launchSec || 0) > 0) continue;
-        if (nowSec < (dot.noCollectUntilSec || 0)) continue;
-        const totalR = collectR + dot.radius;
-        if (distSq(actor.x, actor.y, dot.x, dot.y) <= totalR * totalR) {
-          applyCollection(actor, dot);
-          state.dots.splice(i, 1);
+    function updateHudVisibility() {
+      const showRanking = state.phase === "playing";
+      els.ranking.style.display = showRanking ? "block" : "none";
+    }
+
+    function renderResultList() {
+      const html = state.rankings.map((a, i) => {
+        const cls = a.isPlayer ? "you" : "";
+        return "<li class=\"" + cls + "\"><span>" + (i + 1) + "위 " + a.name + "</span><strong>" + Math.floor(a.score) + "</strong></li>";
+      }).join("");
+      els.resultList.innerHTML = html;
+    }
+
+    function getInputVec() {
+      let kx = 0;
+      let ky = 0;
+      if (state.keys.left) kx -= 1;
+      if (state.keys.right) kx += 1;
+      if (state.keys.up) ky -= 1;
+      if (state.keys.down) ky += 1;
+      if (kx !== 0 || ky !== 0) {
+        const len = Math.hypot(kx, ky) || 1;
+        return { x: kx / len, y: ky / len };
+      }
+      return { x: state.pointer.nx, y: state.pointer.ny };
+    }
+
+    function updateJoin(dtMs) {
+      const elapsed = state.now - state.joinStart;
+      const ratio = clamp(elapsed / CONFIG.JOIN_TOTAL_MS, 0, 1);
+      els.joinProgress.style.width = (ratio * 100).toFixed(2) + "%";
+      const remainSec = Math.ceil((CONFIG.JOIN_TOTAL_MS - elapsed) / 1000);
+      els.joinCountdown.textContent = "게임 시작까지 " + Math.max(0, remainSec) + "초";
+
+      for (const bot of state.actors) {
+        if (bot.isPlayer || bot.joined) continue;
+        if (elapsed >= bot.joinAtMs) {
+          bot.joined = true;
+          bot.joinTs = state.now;
+          const angle = rand(0, Math.PI * 2);
+          bot.joinPosStart = {
+            x: clamp(bot.x + Math.cos(angle) * 260, 20, CONFIG.MAP_W - 20),
+            y: clamp(bot.y + Math.sin(angle) * 260, 20, CONFIG.MAP_H - 20)
+          };
+          state.joinFeed.push(bot.name + " 참가 완료");
+          syncJoinFeed();
         }
       }
-    }
-  }
 
-  function updateMovingDots(dt) {
-    for (let i = state.dots.length - 1; i >= 0; i -= 1) {
-      const d = state.dots[i];
-      if (d.launchSec > 0) {
-        d.x += d.launchVx * dt;
-        d.y += d.launchVy * dt;
-        d.launchVx *= 0.985;
-        d.launchVy *= 0.985;
-        d.launchSec -= dt;
-        if (d.launchSec <= 0) {
-          d.launchSec = 0;
-          d.launchVx = 0;
-          d.launchVy = 0;
-        }
-        continue;
+      updateWorld(dtMs, false);
+
+      if (elapsed >= CONFIG.JOIN_TOTAL_MS) {
+        beginStartFx();
       }
-      if (d.type !== "chaser") continue;
-      d.x += d.vx * dt;
-      d.y += d.vy * dt;
-      if (d.x < d.radius) { d.x = d.radius; d.vx = Math.abs(d.vx); }
-      else if (d.x > CONFIG.MAP_W - d.radius) { d.x = CONFIG.MAP_W - d.radius; d.vx = -Math.abs(d.vx); }
-      if (d.y < d.radius) { d.y = d.radius; d.vy = Math.abs(d.vy); }
-      else if (d.y > CONFIG.MAP_H - d.radius) { d.y = CONFIG.MAP_H - d.radius; d.vy = -Math.abs(d.vy); }
-      d.ttlSec -= dt;
-      if (d.ttlSec <= 0) state.dots.splice(i, 1);
     }
-  }
 
-  function maintainDots(dt) {
-    state.spawnTimer += dt;
-    if (state.spawnTimer < CONFIG.SPAWN_INTERVAL) return;
-    state.spawnTimer = 0;
-    if (state.dots.length < CONFIG.SPAWN_MIN) {
-      while (state.dots.length < CONFIG.SPAWN_TARGET && state.dots.length < CONFIG.SPAWN_MAX) {
-        spawnOneDot();
+    function updateStartFx() {
+      const elapsed = state.now - state.startFxStart;
+      const hold = 700;
+      const fade = CONFIG.GAME_START_FX_MS - hold;
+      let alpha = 1;
+      if (elapsed <= hold) alpha = 1;
+      else alpha = clamp(1 - (elapsed - hold) / fade, 0, 1);
+      const scale = 0.86 + easeOutCubic(clamp(elapsed / 350, 0, 1)) * 0.2;
+      els.startFxText.style.opacity = String(alpha);
+      els.startFxText.style.transform = "scale(" + scale.toFixed(3) + ")";
+      if (elapsed >= CONFIG.GAME_START_FX_MS) {
+        beginPlaying();
       }
-    } else if (state.dots.length < CONFIG.SPAWN_TARGET && Math.random() < 0.35) {
-      spawnOneDot();
     }
-  }
 
-  function updateComboChainTimeout(actor) {
-    const nowSec = state.elapsedMs / 1000;
-    if (nowSec - actor.lastCollectSec > CONFIG.COMBO_CHAIN_WINDOW_SEC) actor.comboChainCount = 0;
-  }
-
-  function updateComboDecay(actor, dt) {
-    const nowSec = state.elapsedMs / 1000;
-    if (nowSec - actor.lastCollectSec <= CONFIG.COMBO_DECAY_DELAY) return;
-    if (actor.combo <= 0) return;
-    actor.combo = Math.max(0, actor.combo - CONFIG.COMBO_DECAY_PER_SEC * dt);
-  }
-
-  function updateParticles(dt) {
-    for (let i = state.particles.length - 1; i >= 0; i -= 1) {
-      const p = state.particles[i];
-      p.life -= dt;
-      if (p.life <= 0) {
-        state.particles.splice(i, 1);
-        continue;
+    function updatePlaying(dtMs) {
+      updateWorld(dtMs, true);
+      const elapsed = state.now - state.startTime;
+      const remainMs = Math.max(0, CONFIG.SESSION_MS - elapsed);
+      els.timer.textContent = (remainMs / 1000).toFixed(1);
+      if (elapsed >= CONFIG.SESSION_MS) {
+        beginResult();
       }
-      p.x += p.vx * dt;
-      p.y += p.vy * dt;
-      p.vx *= 0.93;
-      p.vy *= 0.93;
     }
-  }
 
-  function updateComboEffects(dt) {
-    for (let i = state.comboEffects.length - 1; i >= 0; i -= 1) {
-      const e = state.comboEffects[i];
-      e.life -= dt;
-      if (e.life <= 0) state.comboEffects.splice(i, 1);
-    }
-  }
+    function updateWorld(dtMs, allowInput) {
+      const dt = dtMs / 1000;
+      state.dotRespawnTick += dtMs;
 
-  function botRank(bot) {
-    const ranks = sortedRanks();
-    const idx = ranks.findIndex((r) => r.id === bot.id);
-    return idx >= 0 ? idx + 1 : 4;
-  }
-
-  function sortedRanks() {
-    return [...state.actors].sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      return a.scoreReachedAt - b.scoreReachedAt;
-    });
-  }
-
-  function updateBots(dt) {
-    const nowSec = state.elapsedMs / 1000;
-    for (const bot of state.actors) {
-      if (bot.isPlayer) continue;
-      if (bot.botRetargetAt <= nowSec) {
-        bot.botRetargetAt = nowSec + CONFIG.BOT_RETARGET_INTERVAL;
-        let best = null;
-        let bestScore = -1e9;
-        const rank = botRank(bot);
-        for (const dot of state.dots) {
-          if ((dot.launchSec || 0) > 0) continue;
-          if (nowSec < (dot.noCollectUntilSec || 0)) continue;
-          const dist = Math.sqrt(distSq(bot.x, bot.y, dot.x, dot.y));
-          const valueScore = dot.baseScore * 1.0;
-          const distScore = -dist * 0.08;
-          const catchupBonus = rank >= 3 ? 8 : 0;
-          const total = valueScore + distScore + catchupBonus;
-          if (total > bestScore) {
-            bestScore = total;
-            best = dot;
+      if (state.dotRespawnTick >= CONFIG.DOT_RESPAWN_INTERVAL_MS) {
+        state.dotRespawnTick = 0;
+        if (state.dots.length < CONFIG.DOT_MAX) {
+          const need = CONFIG.DOT_MIN - state.dots.length;
+          const spawnCount = need > 0 ? need : randInt(0, 2);
+          for (let i = 0; i < spawnCount && state.dots.length < CONFIG.DOT_MAX; i++) {
+            state.dots.push(makeDot(pickDotType()));
           }
         }
-        if (best) {
-          bot.botTargetX = best.x;
-          bot.botTargetY = best.y;
+      }
+
+      for (const a of state.actors) {
+        const inactive = !a.isPlayer && !a.joined;
+        if (inactive) continue;
+
+        if (state.now - a.lastCollectMs > CONFIG.CHAIN_WINDOW_MS && a.combo > 0) {
+          a.combo = 0;
+        }
+        if (state.now - a.lastCollectMs > CONFIG.SCALE_DECAY_DELAY_MS && a.scaleLevel > 0) {
+          a.scaleLevel = Math.max(0, a.scaleLevel - CONFIG.SCALE_DECAY_PER_SEC * dt);
+        }
+
+        // Join/Start 이전에는 액터가 이동하지 않도록 고정한다.
+        if (!allowInput) {
+          a.vx = 0;
+          a.vy = 0;
+          continue;
+        }
+
+        let input = { x: 0, y: 0 };
+        if (a.isPlayer) {
+          input = allowInput ? getInputVec() : { x: 0, y: 0 };
+        } else {
+          input = updateBotInput(a);
+        }
+        const speedMul = a.isPlayer ? CONFIG.PLAYER_SPEED_MUL : CONFIG.BOT_SPEED_MUL;
+        const feverMul = state.now < a.feverUntilMs ? 1.1 : 1.0;
+        const speed = CONFIG.BASE_SPEED * speedMul * feverMul;
+        a.vx = input.x * speed;
+        a.vy = input.y * speed;
+        a.x = clamp(a.x + a.vx * dt, 0, CONFIG.MAP_W);
+        a.y = clamp(a.y + a.vy * dt, 0, CONFIG.MAP_H);
+      }
+
+      for (let i = state.dots.length - 1; i >= 0; i--) {
+        const d = state.dots[i];
+        if (d.type === "chaser") {
+          d.lifeLeftMs -= dtMs;
+          d.x += d.vx * dt;
+          d.y += d.vy * dt;
+          if (d.x < 8 || d.x > CONFIG.MAP_W - 8) d.vx *= -1;
+          if (d.y < 8 || d.y > CONFIG.MAP_H - 8) d.vy *= -1;
+          d.x = clamp(d.x, 8, CONFIG.MAP_W - 8);
+          d.y = clamp(d.y, 8, CONFIG.MAP_H - 8);
+          if (d.lifeLeftMs <= 0) {
+            state.dots.splice(i, 1);
+            continue;
+          }
+        } else if (state.now < d.launchUntilMs) {
+          d.x += d.vx * dt;
+          d.y += d.vy * dt;
+          d.vx *= 0.96;
+          d.vy *= 0.96;
+          d.x = clamp(d.x, 8, CONFIG.MAP_W - 8);
+          d.y = clamp(d.y, 8, CONFIG.MAP_H - 8);
         }
       }
-      const dx = bot.botTargetX - bot.x;
-      const dy = bot.botTargetY - bot.y;
-      const len = Math.sqrt(dx * dx + dy * dy) || 1;
-      const speed = CONFIG.BASE_SPEED * actorSpeedMul(bot);
-      bot.vx = (dx / len) * speed;
-      bot.vy = (dy / len) * speed;
-      bot.x = clamp(bot.x + bot.vx * dt, 0, CONFIG.MAP_W);
-      bot.y = clamp(bot.y + bot.vy * dt, 0, CONFIG.MAP_H);
-    }
-  }
 
-  function updatePlayer(dt) {
-    const player = state.actors.find((a) => a.isPlayer);
-    if (!player) return;
-    let ix = 0;
-    let iy = 0;
-    if (state.keys.ArrowUp || state.keys.w || state.keys.W) iy -= 1;
-    if (state.keys.ArrowDown || state.keys.s || state.keys.S) iy += 1;
-    if (state.keys.ArrowLeft || state.keys.a || state.keys.A) ix -= 1;
-    if (state.keys.ArrowRight || state.keys.d || state.keys.D) ix += 1;
-    const keyLen = Math.sqrt(ix * ix + iy * iy);
-    let vx = 0;
-    let vy = 0;
-    if (keyLen > 0) {
-      const speed = CONFIG.BASE_SPEED * actorSpeedMul(player);
-      vx = (ix / keyLen) * speed;
-      vy = (iy / keyLen) * speed;
-    } else if (state.pointerDown) {
-      const speed = CONFIG.BASE_SPEED * actorSpeedMul(player);
-      const jx = state.joyDx / CONFIG.JOYSTICK_MAX;
-      const jy = state.joyDy / CONFIG.JOYSTICK_MAX;
-      const jLen = Math.sqrt(jx * jx + jy * jy);
-      if (jLen > 0.08) {
-        const cap = Math.min(1, jLen);
-        vx = (jx / jLen) * speed * cap;
-        vy = (jy / jLen) * speed * cap;
+      for (let i = state.dots.length - 1; i >= 0; i--) {
+        const d = state.dots[i];
+        if (state.now < d.launchUntilMs) continue;
+        let collectedBy = null;
+        for (const a of state.actors) {
+          if (!a.isPlayer && !a.joined) continue;
+          const pickR = actorPickupRadius(a) * (state.now < a.feverUntilMs ? 1.35 : 1);
+          const dx = a.x - d.x;
+          const dy = a.y - d.y;
+          if (dx * dx + dy * dy <= pickR * pickR) {
+            collectedBy = a;
+            break;
+          }
+        }
+        if (!collectedBy) continue;
+
+        onCollectDot(collectedBy, d);
+        state.dots.splice(i, 1);
       }
+
+      updateParticles(dtMs);
+      updateCamera();
+      updateComboUI();
+      renderRankingPanel();
     }
-    player.vx = vx;
-    player.vy = vy;
-    player.x = clamp(player.x + vx * dt, 0, CONFIG.MAP_W);
-    player.y = clamp(player.y + vy * dt, 0, CONFIG.MAP_H);
-  }
 
-  function updateCamera() {
-    const player = state.actors.find((a) => a.isPlayer);
-    if (!player) return;
-    const raw = (1 / (1 + player.combo * CONFIG.ZOOM_COMBO_FACTOR)) * CONFIG.CAMERA_CLOSENESS_MULTIPLIER;
-    state.targetZoom = clamp(raw, CONFIG.ZOOM_MIN, CONFIG.ZOOM_MAX);
-    state.zoom = lerp(state.zoom, state.targetZoom, CONFIG.ZOOM_LERP_ALPHA);
-    const halfW = state.gameView.width / (2 * state.zoom);
-    const halfH = state.gameView.height / (2 * state.zoom);
-    state.camX = clamp(player.x, halfW, CONFIG.MAP_W - halfW);
-    state.camY = clamp(player.y, halfH, CONFIG.MAP_H - halfH);
-  }
+    function updateBotInput(bot) {
+      if (state.now >= bot.aiRetargetMs || !state.dots.some((d) => d.id === bot.targetDotId)) {
+        bot.aiRetargetMs = state.now + 400;
+        let best = null;
+        let bestScore = -Infinity;
+        const rank = state.rankings.findIndex((a) => a.id === bot.id) + 1;
+        const catchupBonus = rank >= 3 ? 8 : 0;
+        for (const d of state.dots) {
+          if (state.now < d.launchUntilMs) continue;
+          const def = dotDef(d.type);
+          const dx = d.x - bot.x;
+          const dy = d.y - bot.y;
+          const dist = Math.hypot(dx, dy);
+          const total = def.base * 1.0 - dist * 0.08 + catchupBonus;
+          if (total > bestScore) {
+            bestScore = total;
+            best = d;
+          }
+        }
+        bot.targetDotId = best ? best.id : null;
+      }
+      const target = state.dots.find((d) => d.id === bot.targetDotId);
 
-  function updateQualityFallback(dt) {
-    state.frameCount += 1;
-    const now = performance.now();
-    if (now - state.lastFpsTick >= 1000) {
-      const fps = state.frameCount;
-      state.frameCount = 0;
-      state.lastFpsTick = now;
-      if (fps < CONFIG.FPS_LOW_THRESHOLD) state.fpsLowAccum += 1;
-      else state.fpsLowAccum = Math.max(0, state.fpsLowAccum - 0.5);
-      state.qualityReduced = state.fpsLowAccum >= CONFIG.FPS_LOW_HOLD_SEC;
+      // Hazard 감지 시, 일정 확률로 짧은 회피 상태를 활성화한다.
+      if (state.now >= bot.aiHazardDecisionUntilMs) {
+        bot.aiHazardDecisionUntilMs = state.now + 170;
+        let nearestHazard = null;
+        let nearestDistSq = Infinity;
+        for (const d of state.dots) {
+          if (d.type !== "hazard") continue;
+          const dxh = d.x - bot.x;
+          const dyh = d.y - bot.y;
+          const distSq = dxh * dxh + dyh * dyh;
+          if (distSq < nearestDistSq) {
+            nearestDistSq = distSq;
+            nearestHazard = d;
+          }
+        }
+        if (nearestHazard && nearestDistSq <= CONFIG.AI_HAZARD_DETECT_RADIUS * CONFIG.AI_HAZARD_DETECT_RADIUS) {
+          if (Math.random() < CONFIG.AI_HAZARD_AVOID_CHANCE) {
+            const ax = bot.x - nearestHazard.x;
+            const ay = bot.y - nearestHazard.y;
+            const alen = Math.hypot(ax, ay) || 1;
+            bot.aiAvoidX = ax / alen;
+            bot.aiAvoidY = ay / alen;
+            bot.aiAvoidHazardUntilMs = state.now + rand(190, 420);
+          }
+        }
+      }
+
+      const avoidingHazard = state.now < bot.aiAvoidHazardUntilMs;
+      if (state.now >= bot.aiJitterUntilMs) {
+        bot.aiJitterUntilMs = state.now + rand(180, 420);
+        bot.aiJitterX = rand(-0.22, 0.22);
+        bot.aiJitterY = rand(-0.22, 0.22);
+      }
+
+      if (!target) {
+        const wander = bot.aiWobblePhase + state.now * 0.0018;
+        let wx = Math.cos(wander) * 0.5 + bot.aiJitterX;
+        let wy = Math.sin(wander) * 0.5 + bot.aiJitterY;
+        if (avoidingHazard) {
+          wx = wx * 0.45 + bot.aiAvoidX * 1.2;
+          wy = wy * 0.45 + bot.aiAvoidY * 1.2;
+        }
+        const wlen = Math.hypot(wx, wy) || 1;
+        return {
+          x: wx / wlen,
+          y: wy / wlen
+        };
+      }
+
+      const dx = target.x - bot.x;
+      const dy = target.y - bot.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const nx = dx / len;
+      const ny = dy / len;
+
+      // 각 봇마다 위상/지터를 달리해 직선 추적을 완화한다.
+      const wobble = Math.sin(state.now * 0.006 + bot.aiWobblePhase) * 0.24;
+      const px = -ny;
+      const py = nx;
+      let mixedX = nx + px * wobble + bot.aiJitterX;
+      let mixedY = ny + py * wobble + bot.aiJitterY;
+
+      if (avoidingHazard) {
+        mixedX = mixedX * 0.5 + bot.aiAvoidX * 1.25;
+        mixedY = mixedY * 0.5 + bot.aiAvoidY * 1.25;
+      }
+
+      const mixedLen = Math.hypot(mixedX, mixedY) || 1;
+      return { x: mixedX / mixedLen, y: mixedY / mixedLen };
     }
-  }
 
-  function updateJoinScene(nowMs) {
-    const dt = clamp((nowMs - state.lastFrameTimeMs) / 1000, 0, 0.05);
-    state.lastFrameTimeMs = nowMs;
-    state.joinElapsedMs += dt * 1000;
-    const nowSec = state.joinElapsedMs / 1000;
-    const progress = clamp(nowSec / CONFIG.JOIN_TOTAL_SEC, 0, 1);
-    joinBarFill.style.width = `${(progress * 100).toFixed(1)}%`;
-    const remainSec = Math.max(0, CONFIG.JOIN_TOTAL_SEC - nowSec);
-    joinCountdown.textContent = `게임 시작까지 ${remainSec.toFixed(1)}초`;
-    updateJoinIntroEvents(nowSec);
-    updateJoinAnimations(nowSec);
-    if (nowSec >= CONFIG.JOIN_TOTAL_SEC) {
-      state.joinSceneActive = false;
-      hideJoinPanel();
-      startGameStartScene(nowMs);
+    function onCollectDot(actor, dot) {
+      const def = dotDef(dot.type);
+      if (dot.type === "hazard") {
+        const loss = Math.min(actor.score, Math.floor(actor.score * CONFIG.HAZARD_LOSS_RATE));
+        actor.score -= loss;
+        actor.lastScoreUpdateMs = state.now;
+        actor.flashUntilMs = state.now + 450;
+        if (loss > 0) spawnRestitutionDots(loss, dot.x, dot.y);
+      } else {
+        const baseGain = def.base + actor.combo * 2;
+        const mul = actor.isPlayer ? CONFIG.PLAYER_GAIN_MUL : CONFIG.BOT_GAIN_MUL;
+        const gain = baseGain * mul;
+        actor.score += gain;
+        actor.combo = Math.min(CONFIG.MAX_COMBO, actor.combo + def.comboGain);
+        actor.scaleLevel = Math.min(CONFIG.MAX_SCALE_LEVEL, actor.scaleLevel + def.comboGain * CONFIG.SCALE_GAIN_MUL);
+        actor.lastCollectMs = state.now;
+        actor.lastScoreUpdateMs = state.now;
+        if (dot.type === "fever") {
+          actor.feverUntilMs = Math.max(actor.feverUntilMs, state.now + CONFIG.FEVER_MS);
+        }
+        if (actor.isPlayer) {
+          if (state.now - actor.chainLastCollectMs <= CONFIG.CHAIN_WINDOW_MS) state.uiChainCount += 1;
+          else state.uiChainCount = 1;
+          actor.chainLastCollectMs = state.now;
+          state.uiChainUntil = state.now + CONFIG.CHAIN_WINDOW_MS;
+        }
+      }
+      spawnCollectParticles(dot);
     }
-  }
 
-  function endGame() {
-    if (state.ended) return;
-    state.ended = true;
-    state.running = false;
-    joystickEl.classList.remove("active");
-    state.pointerDown = false;
-    showResultPanel();
-  }
-
-  function showResultPanel() {
-    resultList.innerHTML = "";
-    const ranks = sortedRanks();
-    ranks.forEach((a, i) => {
-      const li = document.createElement("li");
-      if (a.isPlayer) li.classList.add("you");
-      li.innerHTML = `<span>${i + 1}. ${a.name}</span><strong>${displayScore(a.score)}</strong>`;
-      resultList.appendChild(li);
-    });
-    resultPanel.style.display = "flex";
-  }
-
-  function displayScore(score) {
-    return Math.max(0, Math.floor(score));
-  }
-
-  function worldToCanvas(wx, wy) {
-    const gx = (wx - state.camX) * state.zoom + state.gameView.width / 2;
-    const gy = (wy - state.camY) * state.zoom + state.gameView.height / 2;
-    return {
-      x: state.gameView.x + gx * state.viewScale,
-      y: state.gameView.y + gy * state.viewScale
-    };
-  }
-
-  function withNeon(color, blur, drawFn) {
-    ctx.save();
-    ctx.globalCompositeOperation = "lighter";
-    ctx.shadowColor = color;
-    ctx.shadowBlur = blur;
-    drawFn();
-    ctx.restore();
-  }
-
-  function drawDots(nowSec) {
-    for (const d of state.dots) {
-      const pulse = 0.85 + 0.15 * Math.sin(nowSec * 4 + d.x * 0.01);
-      const r = d.radius * pulse;
-      if (d.type === "hazard") {
-        const triR = r * 2.1;
-        const wob = 1 + 0.08 * Math.sin(nowSec * 10);
-        withNeon(d.color, state.qualityReduced ? CONFIG.SHADOW_BLUR_LOW : CONFIG.SHADOW_BLUR, () => {
-          ctx.fillStyle = d.color;
-          ctx.strokeStyle = "rgba(255,120,100,0.85)";
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.arc(d.x, d.y, triR * 1.35 * wob, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.moveTo(d.x, d.y - triR * wob);
-          ctx.lineTo(d.x + triR * 0.866 * wob, d.y + triR * 0.5 * wob);
-          ctx.lineTo(d.x - triR * 0.866 * wob, d.y + triR * 0.5 * wob);
-          ctx.closePath();
-          ctx.fill();
+    function spawnRestitutionDots(loss, x, y) {
+      const count = clamp(Math.floor(loss / 18), 3, 12);
+      for (let i = 0; i < count && state.dots.length < CONFIG.DOT_MAX; i++) {
+        const angle = rand(0, Math.PI * 2);
+        const speed = rand(700, 1200);
+        state.dots.push({
+          id: state.nextDotId++,
+          type: "normal",
+          x,
+          y,
+          size: 10,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          lifeLeftMs: 0,
+          launchUntilMs: state.now + CONFIG.HAZARD_LAUNCH_MS,
+          spawnedMs: state.now
         });
-        continue;
-      }
-      withNeon(d.color, state.qualityReduced ? CONFIG.SHADOW_BLUR_LOW : CONFIG.SHADOW_BLUR, () => {
-        ctx.fillStyle = d.color;
-        ctx.save();
-        ctx.translate(d.x, d.y);
-        ctx.rotate(nowSec * 0.8 + d.x * 0.002);
-        ctx.fillRect(-r, -r, r * 2, r * 2);
-        ctx.restore();
-      });
-    }
-  }
-
-  function drawActors(nowSec) {
-    const ranks = sortedRanks();
-    const leaderId = ranks.length ? ranks[0].id : null;
-    for (const a of state.actors) {
-      if (!a.joined) continue;
-      const rad = actorRadius(a);
-      const flash = nowSec <= a.hazardFlashUntil;
-      withNeon(flash ? "#ff4444" : a.color, state.qualityReduced ? CONFIG.SHADOW_BLUR_LOW : CONFIG.SHADOW_BLUR, () => {
-        ctx.fillStyle = flash ? "rgba(255,80,80,0.95)" : a.color;
-        ctx.beginPath();
-        ctx.arc(a.x, a.y, rad, 0, Math.PI * 2);
-        ctx.fill();
-      });
-      if (a.id === leaderId) {
-        ctx.save();
-        ctx.fillStyle = "#ffd966";
-        ctx.font = `14px Arial`;
-        ctx.textAlign = "center";
-        ctx.fillText("\u2655", a.x, a.y - rad - 8);
-        ctx.restore();
       }
     }
-  }
 
-  function drawParticles(nowMs) {
-    for (const p of state.particles) {
-      const alpha = clamp(p.life / p.maxLife, 0, 1);
+    function spawnCollectParticles(dot) {
+      const tier = {
+        normal: { count: 7, speed: 120, life: 420, size: 2.2, color: "#53f5ff" },
+        bonus: { count: 10, speed: 145, life: 470, size: 2.6, color: "#91ff62" },
+        fever: { count: 14, speed: 170, life: 520, size: 3.0, color: "#ff7ef1" },
+        chaser: { count: 16, speed: 190, life: 560, size: 3.2, color: "#b989ff" },
+        hazard: { count: 12, speed: 150, life: 500, size: 2.9, color: "#ff5e7f" }
+      }[dot.type];
+
+      const count = Math.max(2, Math.floor(tier.count * state.particleQualityMul));
+      for (let i = 0; i < count; i++) {
+        if (state.particles.length >= CONFIG.MAX_PARTICLES) break;
+        const a = rand(0, Math.PI * 2);
+        const sp = rand(tier.speed * 0.45, tier.speed) * 6;
+        state.particles.push({
+          id: state.nextParticleId++,
+          x: dot.x,
+          y: dot.y,
+          vx: Math.cos(a) * sp,
+          vy: Math.sin(a) * sp,
+          lifeMs: tier.life,
+          maxLifeMs: tier.life,
+          size: rand(tier.size * 0.7, tier.size * 1.25) * 4,
+          color: tier.color
+        });
+      }
+    }
+
+    function updateParticles(dtMs) {
+      const dt = dtMs / 1000;
+      for (let i = state.particles.length - 1; i >= 0; i--) {
+        const p = state.particles[i];
+        p.lifeMs -= dtMs;
+        if (p.lifeMs <= 0) {
+          state.particles.splice(i, 1);
+          continue;
+        }
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vx *= 0.93;
+        p.vy *= 0.93;
+      }
+    }
+
+    function updateCamera() {
+      const player = state.player;
+      const scaleLevel = player ? player.scaleLevel : 0;
+      const raw = (1 / (1 + scaleLevel * 0.007)) * 1.3;
+      state.targetZoom = clamp(raw, 0.2, 3.0);
+      state.zoom += (state.targetZoom - state.zoom) * 0.1;
+
+      const effectiveZoom = state.zoom * viewScale;
+      const halfW = gameView.width / (2 * effectiveZoom);
+      const halfH = gameView.height / (2 * effectiveZoom);
+      state.camX = clamp(player.x, halfW, CONFIG.MAP_W - halfW);
+      state.camY = clamp(player.y, halfH, CONFIG.MAP_H - halfH);
+    }
+
+    function comboStyle(combo) {
+      if (combo <= 15) return { color: "#ffffff", scale: 1.0 };
+      if (combo <= 30) return { color: "#6ab2ff", scale: 1.1 };
+      if (combo <= 45) return { color: "#ffe16b", scale: 1.2 };
+      if (combo <= 60) return { color: "#ff5d66", scale: 1.3 };
+      return { color: "#ca8eff", scale: 1.4 };
+    }
+
+    function updateComboUI() {
+      const combo = Math.floor(state.player.combo);
+      const withinChainWindow = state.now - state.player.chainLastCollectMs <= CONFIG.CHAIN_WINDOW_MS;
+      const visible = withinChainWindow && combo > 0;
+      if (!visible) {
+        state.uiChainCount = 0;
+        els.comboText.style.opacity = "0";
+        return;
+      }
+      const style = comboStyle(combo);
+      els.comboText.style.color = style.color;
+      els.comboText.textContent = "COMBO x" + combo;
+      const pulse = 1 + Math.sin(state.now * 0.03) * 0.08;
+      els.comboText.style.transform = "translateX(-50%) scale(" + (style.scale * pulse).toFixed(3) + ")";
+      els.comboText.style.opacity = "1";
+    }
+
+    function drawWorld() {
+      ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+
+      ctx.fillStyle = "#050512";
+      ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+
+      ctx.fillStyle = CONFIG_BG_WORLD;
+      ctx.fillRect(gameView.x, gameView.y, gameView.width, gameView.height);
+
       ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = p.color;
-      ctx.shadowColor = p.color;
-      ctx.shadowBlur = state.qualityReduced ? 6 : 12;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.rect(gameView.x, gameView.y, gameView.width, gameView.height);
+      ctx.clip();
+
+      const effectiveZoom = state.zoom * viewScale;
+      ctx.translate(gameView.x + gameView.width * 0.5, gameView.y + gameView.height * 0.5);
+      ctx.scale(effectiveZoom, effectiveZoom);
+      ctx.translate(-state.camX, -state.camY);
+
+      drawGrid();
+      drawDots();
+      drawParticles();
+      drawActors();
+      ctx.restore();
+
+      drawJoystick();
+    }
+
+    const CONFIG_BG_WORLD = "#0b0b1a";
+
+    function drawGrid() {
+      ctx.strokeStyle = "rgba(120, 120, 190, 0.08)";
+      ctx.lineWidth = 1 / (state.zoom * viewScale);
+      for (let x = 0; x <= CONFIG.MAP_W; x += 100) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, CONFIG.MAP_H);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= CONFIG.MAP_H; y += 100) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(CONFIG.MAP_W, y);
+        ctx.stroke();
+      }
+    }
+
+    function drawDots() {
+      const lowFx = state.particleQualityMul < 1;
+      for (const d of state.dots) {
+        const def = dotDef(d.type);
+        const pulse = 0.86 + Math.sin((state.now + d.id * 43) * 0.008) * 0.14;
+        const size = d.size * pulse;
+        if (!lowFx) {
+          ctx.shadowBlur = 16;
+          ctx.shadowColor = def.color;
+        } else {
+          ctx.shadowBlur = 10;
+          ctx.shadowColor = def.color;
+        }
+        ctx.fillStyle = def.color;
+
+        if (d.type === "hazard") {
+          drawTriangle(d.x, d.y, size + 2);
+          if (state.now >= d.launchUntilMs) {
+            ctx.save();
+            ctx.strokeStyle = "rgba(255,85,113,0.45)";
+            ctx.lineWidth = 1.8;
+            const rr = 17 + Math.sin(state.now * 0.013 + d.id) * 3;
+            ctx.beginPath();
+            ctx.arc(d.x, d.y, rr, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+          }
+        } else {
+          ctx.fillRect(d.x - size * 0.5, d.y - size * 0.5, size, size);
+        }
+      }
+      ctx.shadowBlur = 0;
+    }
+
+    function drawTriangle(x, y, size) {
+      ctx.beginPath();
+      ctx.moveTo(x, y - size);
+      ctx.lineTo(x - size * 0.85, y + size * 0.8);
+      ctx.lineTo(x + size * 0.85, y + size * 0.8);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function actorRenderPos(a) {
+      if (state.phase !== "join" || a.isPlayer || !a.joinPosStart) return { x: a.x, y: a.y };
+      const t = clamp((state.now - a.joinTs) / CONFIG.JOIN_SLIDE_MS, 0, 1);
+      const e = easeOutCubic(t);
+      return {
+        x: a.joinPosStart.x + (a.x - a.joinPosStart.x) * e,
+        y: a.joinPosStart.y + (a.y - a.joinPosStart.y) * e
+      };
+    }
+
+    function drawActors() {
+      const leader = state.rankings[0] ? state.rankings[0].id : null;
+      for (const a of state.actors) {
+        if (!a.isPlayer && !a.joined) continue;
+        const p = actorRenderPos(a);
+        const r = actorRadius(a);
+        const flash = state.now < a.flashUntilMs;
+        const color = a.isPlayer ? (flash ? "#ff617f" : "#5ad9ff") : (flash ? "#ff617f" : "#84ffa4");
+        const stroke = a.isPlayer ? "#c4f6ff" : "#d5ffe4";
+
+        ctx.save();
+        ctx.shadowBlur = state.particleQualityMul < 1 ? 9 : 15;
+        ctx.shadowColor = color;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.lineWidth = 2.2;
+        ctx.strokeStyle = stroke;
+        ctx.stroke();
+        ctx.restore();
+
+        if (leader === a.id) drawCrown(p.x, p.y - r - 42);
+
+        ctx.save();
+        ctx.font = "bold 18px sans-serif";
+        ctx.fillStyle = a.isPlayer ? "#ffe79f" : "#f0f6ff";
+        ctx.textAlign = "center";
+        ctx.fillText(a.name, p.x, p.y - r - 10);
+        ctx.restore();
+      }
+    }
+
+    function drawCrown(x, y) {
+      ctx.save();
+      ctx.fillStyle = "#ffd66f";
+      ctx.strokeStyle = "#fff1ad";
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.moveTo(x - 11, y + 6);
+      ctx.lineTo(x - 6, y - 4);
+      ctx.lineTo(x, y + 2);
+      ctx.lineTo(x + 6, y -4);
+      ctx.lineTo(x + 11, y + 6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawParticles() {
+      for (const p of state.particles) {
+        const alpha = clamp(p.lifeMs / p.maxLifeMs, 0, 1);
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = p.color;
+        ctx.shadowBlur = state.particleQualityMul < 1 ? 7 : 12;
+        ctx.shadowColor = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function drawJoystick() {
+      if (!state.pointer.active) return;
+      const radius = 80 * viewScale;
+      const dx = state.pointer.x - state.pointer.sx;
+      const dy = state.pointer.y - state.pointer.sy;
+      const len = Math.hypot(dx, dy);
+      const clamped = Math.min(radius, len);
+      const nx = len > 0 ? dx / len : 0;
+      const ny = len > 0 ? dy / len : 0;
+      const hx = state.pointer.sx + nx * clamped;
+      const hy = state.pointer.sy + ny * clamped;
+      ctx.save();
+      ctx.globalAlpha = 0.9;
+      ctx.strokeStyle = "rgba(180,210,255,0.65)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(state.pointer.sx, state.pointer.sy, radius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = "rgba(95, 215, 255, 0.55)";
+      ctx.beginPath();
+      ctx.arc(hx, hy, 26 * viewScale, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }
-  }
 
-  function drawActorNames() {
-    const baseSize = Math.max(11, 12 * state.viewScale);
-    ctx.save();
-    ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
-    ctx.textAlign = "center";
-    ctx.textBaseline = "bottom";
-    ctx.font = `700 ${baseSize}px Arial`;
-    for (const a of state.actors) {
-      if (!a.joined) continue;
-      const p = worldToCanvas(a.x, a.y);
-      const radScreen = actorRadius(a) * state.zoom * state.viewScale;
-      const y = p.y - radScreen - 8 * state.viewScale;
-      ctx.fillStyle = a.isPlayer ? "#ffe87e" : "#d7ebff";
-      ctx.shadowColor = "rgba(0,0,0,0.7)";
-      ctx.shadowBlur = 4;
-      ctx.fillText(a.name, p.x, y);
-    }
-    ctx.restore();
-  }
-
-  function drawHud() {
-    const viewW = canvas.width / state.dpr;
-    const rem = (CONFIG.SESSION_MS - state.elapsedMs) / 1000;
-    const t = Math.max(0, rem).toFixed(1);
-    ctx.save();
-    ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
-    ctx.font = `700 ${28 * state.viewScale}px Arial`;
-    ctx.textAlign = "center";
-    ctx.fillStyle = "#e8f8ff";
-    ctx.shadowColor = "rgba(100,220,255,0.6)";
-    ctx.shadowBlur = 12;
-    ctx.fillText(t, viewW / 2, 42 * state.viewScale);
-
-    const ranks = sortedRanks();
-    const rankScale = 1.2 * state.viewScale;
-    let y = 36 * state.viewScale;
-    ctx.textAlign = "right";
-    ctx.font = `${15 * rankScale}px Arial`;
-    ranks.forEach((a, i) => {
-      const label = `${i + 1}. ${a.name}  ${displayScore(a.score)}`;
-      ctx.fillStyle = a.isPlayer ? "#ffe87e" : "#d5eaff";
-      ctx.fillText(label, viewW - 18 * state.viewScale, y);
-      y += 22 * rankScale;
-    });
-    ctx.restore();
-  }
-
-  function drawComboFx(nowMs) {
-    const viewW = canvas.width / state.dpr;
-    for (const e of state.comboEffects) {
-      const alpha = clamp(e.life / e.maxLife, 0, 1);
-      const pop = Math.sin((1 - alpha) * Math.PI) * 0.12;
-      ctx.save();
-      ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
-      ctx.globalAlpha = alpha;
-      ctx.translate(viewW / 2, CONFIG.COMBO_TEXT_SCREEN_Y * state.viewScale);
-      ctx.scale(e.scale + pop, e.scale + pop);
-      ctx.font = `800 ${e.fontSize * state.viewScale}px Arial`;
-      ctx.textAlign = "center";
-      ctx.fillStyle = e.color;
-      ctx.shadowColor = e.color;
-      ctx.shadowBlur = 16;
-      ctx.fillText(e.text, 0, 0);
-      ctx.restore();
-    }
-  }
-
-  function renderFrame(nowMs) {
-    const nowSec = state.running ? state.elapsedMs / 1000 : performance.now() / 1000;
-    const viewW = canvas.width / state.dpr;
-    const viewH = canvas.height / state.dpr;
-    ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
-    ctx.fillStyle = CONFIG.LETTERBOX_COLOR;
-    ctx.fillRect(0, 0, viewW, viewH);
-
-    const gv = state.gameView;
-    ctx.save();
-    ctx.translate(gv.x, gv.y);
-    ctx.scale(state.viewScale, state.viewScale);
-
-    ctx.fillStyle = "#0b0b1a";
-    ctx.fillRect(0, 0, gv.width, gv.height);
-
-    ctx.save();
-    ctx.translate(gv.width / 2, gv.height / 2);
-    ctx.scale(state.zoom, state.zoom);
-    ctx.translate(-state.camX, -state.camY);
-
-    drawDots(nowSec);
-    drawParticles(nowMs);
-    drawActors(nowSec);
-
-    ctx.restore();
-
-    drawActorNames();
-
-    if (state.running || state.ended) {
-      drawHud();
-      drawComboFx(nowMs);
-    }
-
-    ctx.restore();
-  }
-
-  function loop(nowMs) {
-    if (state.joinSceneActive) {
-      updateJoinScene(nowMs);
-    } else if (state.gameStartActive) {
-      updateGameStartScene(nowMs);
-      if (state.gameStartReady) beginGameplay(nowMs);
-    } else if (state.running && !state.ended) {
-      const dt = clamp((nowMs - state.lastFrameTimeMs) / 1000, 0, 0.05);
-      state.lastFrameTimeMs = nowMs;
-      state.elapsedMs = nowMs - state.startTimeMs;
-      state.remainingMs = Math.max(0, CONFIG.SESSION_MS - state.elapsedMs);
-      if (state.elapsedMs >= CONFIG.SESSION_MS) {
-        state.elapsedMs = CONFIG.SESSION_MS;
-        state.remainingMs = 0;
-        endGame();
-      } else {
-        updatePlayer(dt);
-        updateMovingDots(dt);
-        updateBots(dt);
-        updateCollections();
-        maintainDots(dt);
-        for (const actor of state.actors) {
-          updateComboChainTimeout(actor);
-          updateComboDecay(actor, dt);
-        }
-        updateParticles(dt);
-        updateComboEffects(dt);
-        updateCamera();
-        updateQualityFallback(dt);
+    function updateScaleLayout() {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const targetRatio = 16 / 9;
+      let vw = w;
+      let vh = vw / targetRatio;
+      if (vh > h) {
+        vh = h;
+        vw = vh * targetRatio;
       }
+      gameView.width = vw;
+      gameView.height = vh;
+      gameView.x = (w - vw) * 0.5;
+      gameView.y = (h - vh) * 0.5;
+      viewScale = Math.min(vw / 1600, 1.1);
+      const uiScale = viewScale;
+      const sideLetterBox = w - (gameView.x + gameView.width);
+
+      els.ranking.style.top = (gameView.y + 22 * uiScale).toFixed(1) + "px";
+      els.ranking.style.right = (sideLetterBox + 20 * uiScale).toFixed(1) + "px";
+      els.ranking.style.transform = "scale(" + (1.2 * uiScale).toFixed(3) + ")";
+      els.startBlock.style.transform = "scale(" + Math.min(viewScale * 1.02, 1).toFixed(3) + ")";
+      els.joinCard.style.transform = "scale(" + Math.min(viewScale * 1.02, 1).toFixed(3) + ")";
+      els.resultCard.style.transform = "scale(" + Math.min(viewScale * 1.02, 1).toFixed(3) + ")";
+      els.timer.style.top = (gameView.y + 24 * uiScale).toFixed(1) + "px";
+      els.timer.style.transform = "translateX(-50%) scale(" + Math.min(uiScale + 0.08, 1.18).toFixed(3) + ")";
+      els.comboText.style.top = (gameView.y + 170 * uiScale).toFixed(1) + "px";
     }
-    renderFrame(nowMs);
-    requestAnimationFrame(loop);
-  }
 
-  function resize() {
-    state.dpr = Math.min(2, window.devicePixelRatio || 1);
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    canvas.width = Math.floor(w * state.dpr);
-    canvas.height = Math.floor(h * state.dpr);
-    const aspect = CONFIG.FIXED_VIEW_ASPECT;
-    let gw = w;
-    let gh = w / aspect;
-    if (gh > h) {
-      gh = h;
-      gw = h * aspect;
+    function resizeCanvas() {
+      dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+      canvas.width = Math.floor(window.innerWidth * dpr);
+      canvas.height = Math.floor(window.innerHeight * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      updateScaleLayout();
     }
-    state.gameView.width = CONFIG.REFERENCE_VIEW_WIDTH;
-    state.gameView.height = CONFIG.REFERENCE_VIEW_WIDTH / aspect;
-    state.viewScale = gw / CONFIG.REFERENCE_VIEW_WIDTH;
-    state.gameView.x = (w - gw) / 2;
-    state.gameView.y = (h - gh) / 2;
-    layoutUiScale();
-  }
 
-  function layoutUiScale() {
-    const s = state.viewScale;
-    startCard.style.transform = `scale(${s})`;
-    resultCard.style.transform = `scale(${s})`;
-    joinCard.style.transform = `scale(${s})`;
-    gameStartCard.style.transform = `scale(${s})`;
-  }
+    function gameLoop(now) {
+      state.now = now;
+      const dtMs = clamp(now - state.lastFrame, 0, 40);
+      state.lastFrame = now;
+      const fps = dtMs > 0 ? 1000 / dtMs : 60;
+      state.fpsEMA = state.fpsEMA * 0.92 + fps * 0.08;
+      if (state.fpsEMA < CONFIG.TARGET_FPS_DROP) state.lowFpsAccMs += dtMs;
+      else state.lowFpsAccMs = Math.max(0, state.lowFpsAccMs - dtMs * 0.7);
+      state.particleQualityMul = state.lowFpsAccMs >= 1000 ? 0.7 : 1;
 
-  function isIOSLikeDevice() {
-    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  }
+      if (state.phase === "join") updateJoin(dtMs);
+      else if (state.phase === "startfx") updateStartFx();
+      else if (state.phase === "playing") updatePlaying(dtMs);
+      else if (state.phase === "ended") {
+        renderRankingPanel();
+      } else {
+        updateWorld(dtMs, false);
+        els.timer.textContent = "60.0";
+      }
 
-  function fullscreenRequestFn(el) {
-    if (el.requestFullscreen) return el.requestFullscreen.bind(el);
-    if (el.webkitRequestFullscreen) return el.webkitRequestFullscreen.bind(el);
-    if (el.msRequestFullscreen) return el.msRequestFullscreen.bind(el);
-    return null;
-  }
-
-  function fullscreenExitFn() {
-    if (document.exitFullscreen) return document.exitFullscreen.bind(document);
-    if (document.webkitExitFullscreen) return document.webkitExitFullscreen.bind(document);
-    if (document.msExitFullscreen) return document.msExitFullscreen.bind(document);
-    return null;
-  }
-
-  function isFullscreenActive() {
-    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
-  }
-
-  function updateFullscreenButtonLabel() {
-    if (isFullscreenActive()) fullscreenBtn.textContent = "창화면으로 보기";
-    else fullscreenBtn.textContent = "전체화면으로 보기";
-    if (isIOSLikeDevice() && !window.navigator.standalone) {
-      fsHint.textContent = "iOS Safari는 전체화면 API가 제한됩니다. 공유 → 홈 화면에 추가 후 실행해 보세요.";
-    } else {
-      fsHint.textContent = "";
+      updateHudVisibility();
+      drawWorld();
+      requestAnimationFrame(gameLoop);
     }
-  }
 
-  function toggleFullscreenBestEffort() {
-    const fn = isFullscreenActive() ? fullscreenExitFn() : fullscreenRequestFn(document.documentElement);
-    if (!fn) {
-      updateFullscreenButtonLabel();
-      return;
+    function pointerToNorm(clientX, clientY) {
+      const radius = 80 * viewScale;
+      const dx = clientX - state.pointer.sx;
+      const dy = clientY - state.pointer.sy;
+      const len = Math.hypot(dx, dy);
+      const used = Math.min(radius, len);
+      const nx = len > 0 ? (dx / len) * (used / radius) : 0;
+      const ny = len > 0 ? (dy / len) * (used / radius) : 0;
+      state.pointer.nx = clamp(nx, -1, 1);
+      state.pointer.ny = clamp(ny, -1, 1);
     }
-    Promise.resolve(fn()).catch(() => {}).finally(updateFullscreenButtonLabel);
-  }
 
-  function resetJoystick() {
-    state.pointerDown = false;
-    state.pointerId = null;
-    state.joyDx = 0;
-    state.joyDy = 0;
-  }
-
-  function onKeyDown(e) {
-    state.keys[e.key] = true;
-  }
-  function onKeyUp(e) {
-    state.keys[e.key] = false;
-  }
-
-  function onJoyDown(e) {
-    if (!state.running) return;
-    if (state.pointerDown) return;
-    state.pointerDown = true;
-    state.pointerId = e.pointerId;
-    state.joyCx = e.clientX;
-    state.joyCy = e.clientY;
-    state.joyDx = 0;
-    state.joyDy = 0;
-    try { e.target.setPointerCapture(e.pointerId); } catch (_) {}
-  }
-  function onJoyMove(e) {
-    if (!state.pointerDown || e.pointerId !== state.pointerId) return;
-    const dx = e.clientX - state.joyCx;
-    const dy = e.clientY - state.joyCy;
-    const len = Math.sqrt(dx * dx + dy * dy);
-    const max = CONFIG.JOYSTICK_MAX;
-    if (len <= max) {
-      state.joyDx = dx;
-      state.joyDy = dy;
-    } else {
-      state.joyDx = (dx / len) * max;
-      state.joyDy = (dy / len) * max;
+    function setKey(code, down) {
+      if (code === "ArrowUp" || code === "KeyW") state.keys.up = down;
+      else if (code === "ArrowDown" || code === "KeyS") state.keys.down = down;
+      else if (code === "ArrowLeft" || code === "KeyA") state.keys.left = down;
+      else if (code === "ArrowRight" || code === "KeyD") state.keys.right = down;
     }
-  }
-  function onJoyUp(e) {
-    if (e.pointerId !== state.pointerId) return;
-    resetJoystick();
-    try { e.target.releasePointerCapture(e.pointerId); } catch (_) {}
-  }
 
-  function boot() {
-    buildActorsForRound();
-    for (const a of state.actors) {
-      a.joined = true;
+    function onPointerDown(e) {
+      if (state.phase !== "playing") return;
+      state.pointer.active = true;
+      state.pointer.id = e.pointerId;
+      state.pointer.sx = e.clientX;
+      state.pointer.sy = e.clientY;
+      state.pointer.x = e.clientX;
+      state.pointer.y = e.clientY;
+      state.pointer.nx = 0;
+      state.pointer.ny = 0;
     }
-    state.camX = CONFIG.MAP_W / 2;
-    state.camY = CONFIG.MAP_H / 2;
-    state.zoom = 3;
-    state.targetZoom = 3;
-    startPanel.style.display = "flex";
-    updateFullscreenButtonLabel();
-    window.addEventListener("resize", resize);
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("keyup", onKeyUp);
-    window.addEventListener("fullscreenchange", updateFullscreenButtonLabel);
-    window.addEventListener("webkitfullscreenchange", updateFullscreenButtonLabel);
-    document.addEventListener("visibilitychange", () => {
-      if (document.hidden) resetJoystick();
-    });
-    joystickEl.addEventListener("pointerdown", onJoyDown);
-    joystickEl.addEventListener("pointermove", onJoyMove);
-    joystickEl.addEventListener("pointerup", onJoyUp);
-    joystickEl.addEventListener("pointercancel", onJoyUp);
-    startBtn.addEventListener("click", () => { startJoinScene(); });
-    restartBtn.addEventListener("click", () => { startJoinScene(); });
-    fullscreenBtn.addEventListener("click", (e) => { e.stopPropagation(); toggleFullscreenBestEffort(); });
-    resize();
-    state.lastFrameTimeMs = performance.now();
-    requestAnimationFrame(loop);
-  }
 
-  boot();
-})();
+    function onPointerMove(e) {
+      if (!state.pointer.active || state.pointer.id !== e.pointerId) return;
+      state.pointer.x = e.clientX;
+      state.pointer.y = e.clientY;
+      pointerToNorm(e.clientX, e.clientY);
+    }
+
+    function onPointerUp(e) {
+      if (!state.pointer.active || state.pointer.id !== e.pointerId) return;
+      state.pointer.active = false;
+      state.pointer.id = null;
+      state.pointer.nx = 0;
+      state.pointer.ny = 0;
+    }
+
+    function bindEvents() {
+      window.addEventListener("resize", resizeCanvas);
+      window.addEventListener("pointerdown", onPointerDown);
+      window.addEventListener("pointermove", onPointerMove);
+      window.addEventListener("pointerup", onPointerUp);
+      window.addEventListener("pointercancel", onPointerUp);
+
+      window.addEventListener("keydown", (e) => {
+        setKey(e.code, true);
+      });
+      window.addEventListener("keyup", (e) => {
+        setKey(e.code, false);
+      });
+      window.addEventListener("blur", () => {
+        state.pointer.active = false;
+        state.pointer.nx = 0;
+        state.pointer.ny = 0;
+        state.keys.up = state.keys.down = state.keys.left = state.keys.right = false;
+      });
+
+      els.startBtn.addEventListener("click", () => {
+        beginJoinPhase();
+      });
+      els.restartBtn.addEventListener("click", () => {
+        beginStartScreen();
+      });
+      els.fullscreenBtn.addEventListener("click", async () => {
+        const root = document.documentElement;
+        try {
+          if (!document.fullscreenElement) {
+            await root.requestFullscreen();
+            els.fullscreenBtn.textContent = "창화면";
+          } else {
+            await document.exitFullscreen();
+            els.fullscreenBtn.textContent = "전체화면";
+          }
+        } catch (err) {
+          alert("이 환경에서는 전체화면이 제한될 수 있습니다.");
+        }
+      });
+      document.addEventListener("fullscreenchange", () => {
+        els.fullscreenBtn.textContent = document.fullscreenElement ? "창화면" : "전체화면";
+      });
+    }
+
+    function init() {
+      bindEvents();
+      resizeCanvas();
+      beginStartScreen();
+      resetRun();
+      requestAnimationFrame((t) => {
+        state.lastFrame = t;
+        requestAnimationFrame(gameLoop);
+      });
+    }
+
+    init();
   </script>
 </body>
 </html>
