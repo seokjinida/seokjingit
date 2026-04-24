@@ -18,29 +18,8 @@
 
 ## 3) 현재 구현 상태 (핵심)
 
-- 파일: `index.html` (단일 실행 파일)
-- 렌더링: Canvas 2D, 외부 라이브러리/에셋 미사용
-- 입력: 포인터 조이스틱 + `WASD/방향키`
-- 세션: 70초 정확 종료(`performance.now()` 기반)
-- 월드: 2000x2000
-- 카메라:
-  - 동적 줌 + 보간
-  - `16:9` 고정 게임 뷰(레터박스)
-  - 화면 축소 시 월드/UI/조이스틱 동시 스케일링
-- 오브젝트:
-  - 네온 사각형 닷
-  - 타입 비율/점수/콤보 반영
-- 콤보 연출:
-  - 체인 윈도우 0.6초
-  - 중앙 상단 체인 텍스트
-  - 15단위 색상 단계 + 단계별 크기 10% 증가
-- UI:
-  - 시작 패널/결과 패널
-  - 우측 상단 랭킹 패널 20% 확대
-  - 좌하단 상태 패널 제거
-- 안정성:
-  - 시작 전 렌더 안전 처리(초기 엔티티 + 방어)
-  - pointer cancel/focus blur 예외 처리
+- 루트 `index.html`: **플레이 가능한 단일 파일** 프로토타입(Canvas 2D, 외부 라이브러리·네트워크 없음).
+- 동작·수치는 `docs/01_GAME_SPEC.md` 등과 맞출 것; 불일치 시 스펙 문서를 먼저 수정한 뒤 코드 반영.
 
 ## 4) 최근 주요 요청 반영 히스토리 요약
 
@@ -59,15 +38,14 @@
 8. 문서 구조 개선:
    - 핵심 재미 가설 문서 분리(`04`)
    - 검증 기준(기능 체크리스트/판정 규칙) 문서 분리(`05`)
+9. 조인/게임시작 다단계 UI, 전체화면 토글, `chaser`/`hazard` 닷, 수집 파티클 티어·거리 튜닝
 
 ## 5) Git 상태 / 커밋
 
-- 로컬 상태: clean (`git status` 변경 없음)
+- 로컬 변경 후 `git status`로 확인(문서만 수정 시 커밋 메시지 예: `docs: sync with index.html build`)
 - 최근 반영 커밋(요약):
+  - `96c2590` Neon Pop Sweeper: docs split, join flow, chaser/hazard, VFX tuning.
   - `82cf240` Tune HUD layout and sync docs for web build.
-  - `7b02790` Update documentation for regenerated build stability.
-  - `5d10ec1` Regenerate index.html from current MD spec.
-  - `b8c3a22` Add Neon Pop Sweeper playable prototype and synced docs.
 
 ## 6) 재시작 시 권장 작업 순서
 

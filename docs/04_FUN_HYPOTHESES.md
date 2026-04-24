@@ -1,4 +1,4 @@
-# Neon Pop Sweeper - Core Fun Hypotheses v1.2
+# Neon Pop Sweeper - Core Fun Hypotheses v1.3
 
 이 문서는 게임의 핵심 재미 가설과 검증 질문을 정의합니다.
 
@@ -26,7 +26,7 @@
 ## 3) 변경 원칙
 
 - 재미 가설 변경은 본 문서를 먼저 수정한다.
-- 가설 변경 시 `docs/01_GAME_SPEC.md`, `docs/03_AGENT_EXECUTION_PROMPT.md`를 동기화한다.
+- 가설 변경 시 `docs/01_GAME_SPEC.md`, `docs/03_AGENT_EXECUTION_PROMPT.md`, 필요 시 `docs/05_VALIDATION_CRITERIA.md`를 동기화한다.
 
 ## 4) 장기 확장 방향 (Future Expansion)
 

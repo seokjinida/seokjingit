@@ -24,6 +24,7 @@
     }
     #startPanel, #joinPanel, #gameStartPanel, #resultPanel {
       position: fixed;
+      inset: 0;
       display: none;
       align-items: center;
       justify-content: center;
@@ -50,7 +51,6 @@
       letter-spacing: 1px;
       text-shadow: 0 0 18px rgba(107, 232, 255, 0.9);
       transform-origin: center center;
-      opacity: 1;
     }
     #joinCard {
       width: min(520px, 92%);
@@ -66,18 +66,8 @@
       text-align: center;
       color: #7fe5ff;
     }
-    #startSub {
-      margin: 8px 0 14px;
-      text-align: center;
-      color: #c8edff;
-      font-size: 14px;
-    }
-    #joinSub {
-      margin: 8px 0 12px;
-      text-align: center;
-      color: #c8edff;
-      font-size: 14px;
-    }
+    #startSub { margin: 8px 0 14px; text-align: center; color: #c8edff; font-size: 14px; }
+    #joinSub { margin: 8px 0 12px; text-align: center; color: #c8edff; font-size: 14px; }
     #joinFeed {
       margin: 0;
       padding: 0;
@@ -101,17 +91,6 @@
       color: #9cecff;
       font-size: 13px;
       font-weight: 700;
-    }
-    #joinStartFx {
-      margin: 8px 0 6px;
-      text-align: center;
-      color: #9cecff;
-      font-size: 30px;
-      font-weight: 800;
-      letter-spacing: 0.4px;
-      text-shadow: 0 0 18px rgba(124, 234, 255, 0.8);
-      transform-origin: center center;
-      opacity: 0;
     }
     #joinBar {
       width: 100%;
@@ -197,36 +176,36 @@
       z-index: 12;
     }
     button:active { transform: translateY(1px); }
+    #joystick {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 5;
+      touch-action: none;
+      pointer-events: none;
+    }
+    #joystick.active { pointer-events: auto; }
   </style>
 </head>
 <body>
   <canvas id="game"></canvas>
+  <div id="joystick"></div>
 
   <div id="startPanel">
     <div id="startCard">
-      <h1 id="startTitle">네온 팝 스위퍼</h1>
-      <p id="startSub">70초 동안 최고 점수에 도전</p>
+      <h2 id="startTitle">Neon Pop Sweeper</h2>
+      <p id="startSub">Dynamic Vision · 70초까지 점수를 모아 1위에 도전하세요.</p>
       <ul id="guideList">
-        <li>화면 드래그 조이스틱 또는 WASD/방향키로 이동합니다.</li>
-        <li>네온 닷을 수집하면 점수/콤보가 오르고 캐릭터가 커집니다.</li>
-        <li>70초 종료 시 최종 랭킹이 결정됩니다.</li>
+        <li>드래그로 조이스틱 · 또는 WASD / 방향키</li>
+        <li>네온 닷을 모아 콤보와 점수를 올리세요</li>
+        <li>보라 이동 닷 · 붉은 위험 닷에 주의</li>
       </ul>
-      <button id="fullscreenBtn" class="secondary" type="button">전체화면으로 보기</button>
-      <button id="startBtn" type="button">게임 시작</button>
-      <p id="fsHint"></p>
+      <button type="button" id="startBtn">게임 시작</button>
     </div>
-  </div>
-
-  <div id="resultPanel">
-    <div id="resultCard">
-      <h2 id="resultTitle">최종 순위</h2>
-      <ul id="resultList"></ul>
-      <button id="restartBtn" type="button">Restart</button>
-    </div>
-  </div>
-
-  <div id="gameStartPanel">
-    <div id="gameStartCard">게임 시작!</div>
+    <button type="button" class="secondary" id="fullscreenBtn">전체화면으로 보기</button>
+    <p id="fsHint"></p>
   </div>
 
   <div id="joinPanel">
@@ -234,1024 +213,1103 @@
       <h2 id="joinTitle">참가자 입장 중...</h2>
       <p id="joinSub">1/4 참가자 준비</p>
       <ul id="joinFeed"></ul>
-      <div id="joinStartFx">게임 시작</div>
-      <p id="joinCountdown">곧 시작합니다...</p>
+      <p id="joinCountdown">게임 시작까지 5.0초</p>
       <div id="joinBar"><div id="joinBarFill"></div></div>
     </div>
   </div>
 
+  <div id="gameStartPanel">
+    <div id="gameStartCard">게임 시작!</div>
+  </div>
+
+  <div id="resultPanel">
+    <div id="resultCard">
+      <h2 id="resultTitle">라운드 종료</h2>
+      <ul id="resultList"></ul>
+      <button type="button" id="restartBtn">다시 하기</button>
+    </div>
+  </div>
+
   <script>
-    "use strict";
+(function () {
+  "use strict";
 
-    // 1) Constants
-    const CONFIG = {
-      MAP_W: 2000,
-      MAP_H: 2000,
-      SESSION_MS: 70000,
-      BASE_SPEED: 220,
-      BASE_ACTOR_RADIUS: 15,
-      ACTOR_SIZE_MULTIPLIER: 2.0,
-      MAX_COMBO: 50,
-      JOYSTICK_MAX: 80,
-      SPAWN_MIN: 220,
-      SPAWN_TARGET: 250,
-      SPAWN_MAX: 280,
-      SPAWN_INTERVAL: 0.25,
-      SPAWN_SAFE_RADIUS: 120,
-      BOT_RETARGET_INTERVAL: 0.4,
-      CHASER_SPEED_MIN: 78,
-      CHASER_SPEED_MAX: 104,
-      CHASER_LIFETIME_MIN: 6.0,
-      CHASER_LIFETIME_MAX: 8.0,
-      HAZARD_PENALTY_RATE: 0.05,
-      HAZARD_FLASH_SEC: 0.45,
-      HAZARD_SCATTER_MIN_DOTS: 3,
-      HAZARD_SCATTER_MAX_DOTS: 18,
-      HAZARD_SCATTER_LAUNCH_SPEED_MIN: 420,
-      HAZARD_SCATTER_LAUNCH_SPEED_MAX: 680,
-      HAZARD_SCATTER_LAUNCH_SEC: 1.15,
-      COMBO_DECAY_DELAY: 1.2,
-      COMBO_DECAY_PER_SEC: 5,
-      FEVER_SECONDS: 2.5,
-      ZOOM_MIN: 0.2,
-      ZOOM_MAX: 3.0,
-      ZOOM_LERP_ALPHA: 0.1,
-      ZOOM_COMBO_FACTOR: 0.007,
-      CAMERA_CLOSENESS_MULTIPLIER: 1.3,
-      LETTERBOX_COLOR: "#050512",
-      SHADOW_BLUR: 16,
-      SHADOW_BLUR_LOW: 10,
-      PARTICLE_CAP: 140,
-      PLAYER_COLLECT_RADIUS_MULTIPLIER: 1.82,
-      BOT_COLLECT_RADIUS_MULTIPLIER: 0.9,
-      PLAYER_SPEED_MULTIPLIER: 1.0,
-      BOT_SPEED_MULTIPLIER: 0.88,
-      COMBO_CHAIN_WINDOW_SEC: 0.6,
-      COMBO_TEXT_SCREEN_Y: 170,
-      FIXED_VIEW_ASPECT: 16 / 9,
-      REFERENCE_VIEW_WIDTH: 1600,
-      JOIN_TOTAL_SEC: 5.0,
-      JOIN_EVENT_MIN_SEC: 0.4,
-      JOIN_EVENT_MAX_SEC: 4.4,
-      JOIN_BADGE_GAME_SEC: 1.5,
-      GAME_START_FX_SEC: 1.8
+  const CONFIG = {
+    MAP_W: 2000,
+    MAP_H: 2000,
+    SESSION_MS: 70000,
+    BASE_SPEED: 220,
+    BASE_ACTOR_RADIUS: 15,
+    ACTOR_SIZE_MULTIPLIER: 2.0,
+    MAX_COMBO: 50,
+    JOYSTICK_MAX: 80,
+    SPAWN_MIN: 220,
+    SPAWN_TARGET: 250,
+    SPAWN_MAX: 280,
+    SPAWN_INTERVAL: 0.25,
+    SPAWN_SAFE_RADIUS: 120,
+    BOT_RETARGET_INTERVAL: 0.4,
+    CHASER_SPEED_MIN: 78,
+    CHASER_SPEED_MAX: 104,
+    CHASER_LIFETIME_MIN: 6.0,
+    CHASER_LIFETIME_MAX: 8.0,
+    HAZARD_PENALTY_RATE: 0.05,
+    HAZARD_FLASH_SEC: 0.45,
+    HAZARD_SCATTER_MIN_DOTS: 3,
+    HAZARD_SCATTER_MAX_DOTS: 18,
+    HAZARD_SCATTER_LAUNCH_SPEED_MIN: 420,
+    HAZARD_SCATTER_LAUNCH_SPEED_MAX: 680,
+    HAZARD_SCATTER_LAUNCH_SEC: 1.15,
+    COLLECT_OFFSET: 10,
+    COMBO_DECAY_DELAY: 1.2,
+    COMBO_DECAY_PER_SEC: 5,
+    FEVER_SECONDS: 2.5,
+    ZOOM_MIN: 0.2,
+    ZOOM_MAX: 3.0,
+    ZOOM_LERP_ALPHA: 0.1,
+    ZOOM_COMBO_FACTOR: 0.007,
+    CAMERA_CLOSENESS_MULTIPLIER: 1.3,
+    LETTERBOX_COLOR: "#050512",
+    SHADOW_BLUR: 16,
+    SHADOW_BLUR_LOW: 10,
+    PARTICLE_CAP: 140,
+    PLAYER_COLLECT_RADIUS_MULTIPLIER: 1.82,
+    BOT_COLLECT_RADIUS_MULTIPLIER: 0.9,
+    PLAYER_SPEED_MULTIPLIER: 1.0,
+    BOT_SPEED_MULTIPLIER: 0.88,
+    COMBO_CHAIN_WINDOW_SEC: 0.6,
+    COMBO_TEXT_SCREEN_Y: 170,
+    FIXED_VIEW_ASPECT: 16 / 9,
+    REFERENCE_VIEW_WIDTH: 1600,
+    JOIN_TOTAL_SEC: 5.0,
+    JOIN_EVENT_MIN_SEC: 0.4,
+    JOIN_EVENT_MAX_SEC: 4.4,
+    JOIN_BADGE_GAME_SEC: 1.5,
+    GAME_START_FX_SEC: 1.8,
+    FPS_LOW_THRESHOLD: 45,
+    FPS_LOW_HOLD_SEC: 1.0
+  };
+
+  const DOT_TYPES = [
+    { key: "normal", chance: 0.82, baseScore: 10, comboGain: 1, color: "#54e7ff", radius: 5 },
+    { key: "bonus", chance: 0.12, baseScore: 25, comboGain: 2, color: "#7dff8e", radius: 6 },
+    { key: "fever", chance: 0.03, baseScore: 40, comboGain: 4, color: "#ff58d3", radius: 7 },
+    { key: "chaser", chance: 0.02, baseScore: 55, comboGain: 5, color: "#b06bff", radius: 7 },
+    { key: "hazard", chance: 0.01, baseScore: 0, comboGain: 0, color: "#ff4d4f", radius: 7 }
+  ];
+
+  const ACTOR_COLORS = ["#4fdfff", "#ff7ad7", "#a6ff68", "#ffb45c"];
+  const PLAYER_NAME = "YOU";
+  const BOT_NAME_POOL = [
+    "NeoFox", "MintBug", "RinRin", "JAY_92", "BlueM", "Kite",
+    "Dodo9", "Momo", "PixelJay", "Haru", "Nabi_", "Lime77"
+  ];
+
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+  const startPanel = document.getElementById("startPanel");
+  const startCard = document.getElementById("startCard");
+  const fullscreenBtn = document.getElementById("fullscreenBtn");
+  const startBtn = document.getElementById("startBtn");
+  const fsHint = document.getElementById("fsHint");
+  const resultPanel = document.getElementById("resultPanel");
+  const resultCard = document.getElementById("resultCard");
+  const resultList = document.getElementById("resultList");
+  const restartBtn = document.getElementById("restartBtn");
+  const joinPanel = document.getElementById("joinPanel");
+  const joinCard = document.getElementById("joinCard");
+  const joinTitle = document.getElementById("joinTitle");
+  const joinSub = document.getElementById("joinSub");
+  const joinFeed = document.getElementById("joinFeed");
+  const joinCountdown = document.getElementById("joinCountdown");
+  const joinBarFill = document.getElementById("joinBarFill");
+  const gameStartPanel = document.getElementById("gameStartPanel");
+  const gameStartCard = document.getElementById("gameStartCard");
+  const joystickEl = document.getElementById("joystick");
+
+  const state = {
+    dpr: 1,
+    viewScale: 1,
+    gameView: { x: 0, y: 0, width: 1600, height: 900 },
+    camX: 1000,
+    camY: 1000,
+    zoom: 3,
+    targetZoom: 3,
+    actors: [],
+    dots: [],
+    particles: [],
+    comboEffects: [],
+    elapsedMs: 0,
+    remainingMs: CONFIG.SESSION_MS,
+    startTimeMs: 0,
+    lastFrameTimeMs: 0,
+    running: false,
+    ended: false,
+    joinSceneActive: false,
+    joinElapsedMs: 0,
+    joinEvents: [],
+    joinNextEventIndex: 0,
+    gameStartActive: false,
+    gameStartElapsedMs: 0,
+    gameStartReady: false,
+    gameStartStartMs: 0,
+    qualityReduced: false,
+    fpsLowAccum: 0,
+    lastFpsTick: 0,
+    frameCount: 0,
+    spawnTimer: 0,
+    pointerDown: false,
+    pointerId: null,
+    joyCx: 0,
+    joyCy: 0,
+    joyDx: 0,
+    joyDy: 0,
+    keys: {}
+  };
+
+  function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function randRange(a, b) { return a + Math.random() * (b - a); }
+  function distSq(ax, ay, bx, by) { const dx = bx - ax; const dy = by - ay; return dx * dx + dy * dy; }
+  function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+
+  function pickBotNames(count) {
+    const pool = [...BOT_NAME_POOL];
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    return pool.slice(0, count);
+  }
+
+  function newId() {
+    if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
+    return `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  }
+
+  function actorRadius(actor) {
+    return (CONFIG.BASE_ACTOR_RADIUS + actor.combo * 1.0) * CONFIG.ACTOR_SIZE_MULTIPLIER;
+  }
+
+  function actorCollectRadius(actor) {
+    const r = actorRadius(actor);
+    const base = r + CONFIG.COLLECT_OFFSET;
+    const mul = actor.isPlayer ? CONFIG.PLAYER_COLLECT_RADIUS_MULTIPLIER : CONFIG.BOT_COLLECT_RADIUS_MULTIPLIER;
+    let rr = base * mul;
+    const nowSec = state.elapsedMs / 1000;
+    if (actor.isPlayer && nowSec < actor.feverUntil) rr *= 1.35;
+    return rr;
+  }
+
+  function actorSpeedMul(actor) {
+    let m = actor.isPlayer ? CONFIG.PLAYER_SPEED_MULTIPLIER : CONFIG.BOT_SPEED_MULTIPLIER;
+    const nowSec = state.elapsedMs / 1000;
+    if (actor.isPlayer && nowSec < actor.feverUntil) m *= 1.1;
+    return m;
+  }
+
+  function createActor(opts) {
+    return {
+      id: opts.id,
+      name: opts.name,
+      isPlayer: opts.isPlayer,
+      color: opts.color,
+      x: opts.x,
+      y: opts.y,
+      anchorX: opts.x,
+      anchorY: opts.y,
+      vx: 0,
+      vy: 0,
+      score: 0,
+      combo: 0,
+      comboChainCount: 0,
+      lastCollectSec: -999,
+      lastChainResetSec: -999,
+      scoreReachedAt: 0,
+      feverUntil: 0,
+      hazardFlashUntil: 0,
+      botRetargetAt: 0,
+      botTargetX: opts.x,
+      botTargetY: opts.y,
+      joined: opts.isPlayer === true,
+      joinAnimating: false,
+      joinAnimStartSec: 0,
+      joinAnimDurationSec: 0.65,
+      joinFromX: opts.x,
+      joinFromY: opts.y,
+      joinBadgeUntilSec: 0
     };
+  }
 
-    const DOT_TYPES = [
-      { key: "normal", chance: 0.81, baseScore: 10, comboGain: 1, color: "#54e7ff", radius: 5 },
-      { key: "bonus", chance: 0.12, baseScore: 25, comboGain: 2, color: "#7dff8e", radius: 6 },
-      { key: "fever", chance: 0.03, baseScore: 40, comboGain: 4, color: "#ff58d3", radius: 7 },
-      { key: "chaser", chance: 0.02, baseScore: 55, comboGain: 5, color: "#b06bff", radius: 7 },
-      { key: "hazard", chance: 0.02, baseScore: 0, comboGain: 0, color: "#ff4d4f", radius: 7 }
-    ];
+  function randomOffscreenSpawnPoint() {
+    const pad = 180;
+    const side = Math.floor(Math.random() * 4);
+    const t = Math.random();
+    if (side === 0) return { x: -pad, y: t * CONFIG.MAP_H };
+    if (side === 1) return { x: CONFIG.MAP_W + pad, y: t * CONFIG.MAP_H };
+    if (side === 2) return { x: t * CONFIG.MAP_W, y: -pad };
+    return { x: t * CONFIG.MAP_W, y: CONFIG.MAP_H + pad };
+  }
 
-    const ACTOR_COLORS = ["#4fdfff", "#ff7ad7", "#a6ff68", "#ffb45c"];
-    const PLAYER_NAME = "YOU";
-    const BOT_NAME_POOL = [
-      "NeoFox", "MintBug", "RinRin", "JAY_92", "BlueM", "Kite",
-      "Dodo9", "Momo", "PixelJay", "Haru", "Nabi_", "Lime77"
-    ];
-
-    // 2) State
-    const canvas = document.getElementById("game");
-    const ctx = canvas.getContext("2d");
-    const startPanel = document.getElementById("startPanel");
-    const startCard = document.getElementById("startCard");
-    const fullscreenBtn = document.getElementById("fullscreenBtn");
-    const startBtn = document.getElementById("startBtn");
-    const fsHint = document.getElementById("fsHint");
-    const resultPanel = document.getElementById("resultPanel");
-    const resultCard = document.getElementById("resultCard");
-    const resultList = document.getElementById("resultList");
-    const restartBtn = document.getElementById("restartBtn");
-    const joinPanel = document.getElementById("joinPanel");
-    const joinCard = document.getElementById("joinCard");
-    const joinTitle = document.getElementById("joinTitle");
-    const joinSub = document.getElementById("joinSub");
-    const joinFeed = document.getElementById("joinFeed");
-    const joinStartFx = document.getElementById("joinStartFx");
-    const joinCountdown = document.getElementById("joinCountdown");
-    const joinBarFill = document.getElementById("joinBarFill");
-    const gameStartPanel = document.getElementById("gameStartPanel");
-    const gameStartCard = document.getElementById("gameStartCard");
-
-    const state = {
-      width: 0,
-      height: 0,
-      running: false,
-      ended: false,
-      startTimeMs: 0,
-      elapsedMs: 0,
-      remainingMs: CONFIG.SESSION_MS,
-      lastFrameTimeMs: 0,
-      spawnAccumulator: 0,
-      dots: [],
-      particles: [],
-      comboEffects: [],
-      actors: [],
-      gameView: { x: 0, y: 0, width: 0, height: 0 },
-      viewScale: 1,
-      camera: { x: CONFIG.MAP_W * 0.5, y: CONFIG.MAP_H * 0.5, zoom: CONFIG.ZOOM_MAX },
-      joystick: { active: false, pointerId: null, baseX: 0, baseY: 0, knobX: 0, knobY: 0, dirX: 0, dirY: 0, power: 0 },
-      keyboard: { up: false, down: false, left: false, right: false },
-      qualityReduced: false,
-      fpsMonitor: { timer: 0, frames: 0, currentFps: 60 },
-      joinSceneActive: false,
-      joinSceneStartMs: 0,
-      joinElapsedMs: 0,
-      joinEvents: [],
-      joinNextEventIndex: 0,
-      gameStartSceneActive: false,
-      gameStartElapsedMs: 0,
-      gameStartReady: false
-    };
-
-    // 3) Utility
-    const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-    const lerp = (a, b, t) => a + (b - a) * t;
-    const randRange = (a, b) => a + Math.random() * (b - a);
-
-    function randomOffscreenSpawnPoint() {
-      const side = Math.floor(Math.random() * 4);
-      if (side === 0) return { x: -180, y: randRange(120, CONFIG.MAP_H - 120) };
-      if (side === 1) return { x: CONFIG.MAP_W + 180, y: randRange(120, CONFIG.MAP_H - 120) };
-      if (side === 2) return { x: randRange(120, CONFIG.MAP_W - 120), y: -180 };
-      return { x: randRange(120, CONFIG.MAP_W - 120), y: CONFIG.MAP_H + 180 };
+  function pickDotType() {
+    const roll = Math.random();
+    let acc = 0;
+    for (const t of DOT_TYPES) {
+      acc += t.chance;
+      if (roll <= acc) return t;
     }
+    return DOT_TYPES[0];
+  }
 
-    function easeOutCubic(t) {
-      const u = 1 - clamp(t, 0, 1);
-      return 1 - u * u * u;
+  function spawnOneDot() {
+    const spec = pickDotType();
+    let vx = 0;
+    let vy = 0;
+    let ttlSec = -1;
+    if (spec.key === "chaser") {
+      const ang = Math.random() * Math.PI * 2;
+      const spd = randRange(CONFIG.CHASER_SPEED_MIN, CONFIG.CHASER_SPEED_MAX);
+      vx = Math.cos(ang) * spd;
+      vy = Math.sin(ang) * spd;
+      ttlSec = randRange(CONFIG.CHASER_LIFETIME_MIN, CONFIG.CHASER_LIFETIME_MAX);
     }
-
-    function distSq(ax, ay, bx, by) {
-      const dx = ax - bx;
-      const dy = ay - by;
-      return dx * dx + dy * dy;
-    }
-
-    function computeGameView(width, height) {
-      const targetAspect = CONFIG.FIXED_VIEW_ASPECT;
-      const screenAspect = width / height;
-      if (screenAspect > targetAspect) {
-        const h = height;
-        const w = h * targetAspect;
-        return { x: (width - w) * 0.5, y: 0, width: w, height: h };
+    let x = 0;
+    let y = 0;
+    let tries = 0;
+    while (tries < 80) {
+      tries++;
+      x = randRange(40, CONFIG.MAP_W - 40);
+      y = randRange(40, CONFIG.MAP_H - 40);
+      let ok = true;
+      for (const a of state.actors) {
+        if (distSq(x, y, a.x, a.y) < CONFIG.SPAWN_SAFE_RADIUS * CONFIG.SPAWN_SAFE_RADIUS) {
+          ok = false;
+          break;
+        }
       }
-      const w = width;
-      const h = w / targetAspect;
-      return { x: 0, y: (height - h) * 0.5, width: w, height: h };
+      if (ok) break;
     }
+    state.dots.push({
+      id: newId(),
+      x, y,
+      type: spec.key,
+      baseScore: spec.baseScore,
+      comboGain: spec.comboGain,
+      color: spec.color,
+      radius: spec.radius,
+      vx, vy, ttlSec,
+      launchVx: 0,
+      launchVy: 0,
+      launchSec: 0,
+      noCollectUntilSec: 0
+    });
+  }
 
-    function chooseDotType() {
-      const r = Math.random();
-      let acc = 0;
-      for (const t of DOT_TYPES) {
-        acc += t.chance;
-        if (r <= acc) return t;
-      }
-      return DOT_TYPES[0];
+  function initDots(n) {
+    state.dots.length = 0;
+    for (let i = 0; i < n; i++) spawnOneDot();
+  }
+
+  function buildActorsForRound() {
+    const cx = CONFIG.MAP_W * 0.5;
+    const cy = CONFIG.MAP_H * 0.5;
+    const names = pickBotNames(3);
+    const offsets = [
+      { x: -140, y: -90 },
+      { x: 150, y: -40 },
+      { x: -40, y: 130 }
+    ];
+    const actors = [];
+    actors.push(createActor({
+      id: "p1",
+      name: PLAYER_NAME,
+      isPlayer: true,
+      color: ACTOR_COLORS[0],
+      x: cx,
+      y: cy
+    }));
+    for (let i = 0; i < 3; i++) {
+      const ox = offsets[i].x;
+      const oy = offsets[i].y;
+      actors.push(createActor({
+        id: `b${i + 1}`,
+        name: names[i],
+        isPlayer: false,
+        color: ACTOR_COLORS[i + 1],
+        x: cx + ox,
+        y: cy + oy
+      }));
     }
+    state.actors = actors;
+  }
 
-    function comboColorForCount(chainCount) {
-      if (chainCount <= 15) return "#ffffff";
-      if (chainCount <= 30) return "#58b6ff";
-      if (chainCount <= 45) return "#ffe066";
-      if (chainCount <= 60) return "#ff5f63";
-      return "#b06bff";
-    }
-
-    function comboTierForCount(chainCount) {
-      if (chainCount <= 15) return 0;
-      if (chainCount <= 30) return 1;
-      if (chainCount <= 45) return 2;
-      if (chainCount <= 60) return 3;
-      return 4;
-    }
-
-    function actorRadius(actor) {
-      return (CONFIG.BASE_ACTOR_RADIUS + actor.combo * 1.0) * CONFIG.ACTOR_SIZE_MULTIPLIER;
-    }
-
-    function actorSpeed(actor) {
-      const feverMul = actor.feverUntil > state.elapsedMs / 1000 ? 1.1 : 1.0;
-      const sideMul = actor.isPlayer ? CONFIG.PLAYER_SPEED_MULTIPLIER : CONFIG.BOT_SPEED_MULTIPLIER;
-      return CONFIG.BASE_SPEED * sideMul * feverMul;
-    }
-
-    function actorCollectRadius(actor) {
-      const pickupMul = actor.isPlayer ? CONFIG.PLAYER_COLLECT_RADIUS_MULTIPLIER : CONFIG.BOT_COLLECT_RADIUS_MULTIPLIER;
-      const edgeOffset = CONFIG.BASE_ACTOR_RADIUS * (pickupMul - 1);
-      const base = actorRadius(actor) + edgeOffset;
-      const feverMul = actor.feverUntil > state.elapsedMs / 1000 ? 1.35 : 1.0;
-      return base * feverMul;
-    }
-
-    function getJoystickMaxPx() {
-      return CONFIG.JOYSTICK_MAX * state.viewScale;
-    }
-
-    function currentRanks() {
-      return [...state.actors].sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score;
-        return a.scoreReachedAt - b.scoreReachedAt;
+  function scheduleJoinIntro() {
+    const maxJoinSec = Math.min(CONFIG.JOIN_EVENT_MAX_SEC, CONFIG.JOIN_TOTAL_SEC - 0.2);
+    const events = [];
+    const botActors = state.actors.filter((a) => !a.isPlayer);
+    for (const bot of botActors) {
+      bot.joined = false;
+      bot.x = bot.anchorX;
+      bot.y = bot.anchorY;
+      bot.joinAnimating = false;
+      const atSec = randRange(CONFIG.JOIN_EVENT_MIN_SEC, maxJoinSec);
+      events.push({
+        atSec,
+        actorId: bot.id,
+        text: `${bot.name} 님이 합류했습니다`
       });
     }
-
-    function getRankIndex(actor) {
-      return currentRanks().findIndex((x) => x.id === actor.id) + 1;
+    events.sort((a, b) => a.atSec - b.atSec);
+    state.joinEvents = events;
+    state.joinNextEventIndex = 0;
+    joinFeed.innerHTML = "";
+    const player = state.actors.find((a) => a.isPlayer);
+    if (player) {
+      player.joined = true;
+      const li = document.createElement("li");
+      li.textContent = `${player.name} 님이 합류했습니다`;
+      joinFeed.appendChild(li);
     }
+    joinSub.textContent = "1/4 참가자 준비";
+  }
 
-    function updateOverlayLayout() {
-      const v = state.gameView;
-      const overlayScale = clamp(state.viewScale, 0.6, 1);
-      for (const panel of [startPanel, joinPanel, gameStartPanel, resultPanel]) {
-        panel.style.left = `${v.x}px`;
-        panel.style.top = `${v.y}px`;
-        panel.style.width = `${v.width}px`;
-        panel.style.height = `${v.height}px`;
+  function updateJoinIntroEvents(nowSec) {
+    while (
+      state.joinNextEventIndex < state.joinEvents.length &&
+      nowSec >= state.joinEvents[state.joinNextEventIndex].atSec
+    ) {
+      const ev = state.joinEvents[state.joinNextEventIndex];
+      const li = document.createElement("li");
+      li.textContent = ev.text;
+      joinFeed.appendChild(li);
+      const joinedActor = state.actors.find((a) => a.id === ev.actorId);
+      if (joinedActor) {
+        const from = randomOffscreenSpawnPoint();
+        joinedActor.joined = true;
+        joinedActor.joinAnimating = true;
+        joinedActor.joinAnimStartSec = nowSec;
+        joinedActor.joinFromX = from.x;
+        joinedActor.joinFromY = from.y;
+        joinedActor.x = from.x;
+        joinedActor.y = from.y;
       }
-      startCard.style.transform = `scale(${overlayScale})`;
-      joinCard.style.transform = `scale(${overlayScale})`;
-      gameStartCard.style.transform = `scale(${overlayScale})`;
-      resultCard.style.transform = `scale(${overlayScale})`;
+      joinSub.textContent = `${2 + state.joinNextEventIndex}/4 참가자 준비`;
+      state.joinNextEventIndex += 1;
     }
+  }
 
-    // 4) Init / reset
-    function createActor(id, x, y, color, name, isPlayer) {
-      return {
-        id, x, y, color, name, isPlayer,
-        vx: 0, vy: 0, score: 0, combo: 0,
-        lastCollectSec: 0, comboChainCount: 0, feverUntil: 0,
-        hazardFlashUntil: 0,
-        scoreReachedAt: 0, targetDotId: null, retargetTimer: 0,
-        joinBadgeUntilSec: -1,
-        joined: isPlayer,
-        anchorX: x,
-        anchorY: y,
-        joinFromX: x,
-        joinFromY: y,
-        joinAnimating: false,
-        joinAnimStartSec: -1,
-        joinAnimDurationSec: 0.65
-      };
-    }
-
-    function pickBotNames(count) {
-      const pool = [...BOT_NAME_POOL];
-      for (let i = pool.length - 1; i > 0; i -= 1) {
-        const j = Math.floor(Math.random() * (i + 1));
-        const tmp = pool[i];
-        pool[i] = pool[j];
-        pool[j] = tmp;
-      }
-      return pool.slice(0, count);
-    }
-
-    function initActors() {
-      const botNames = pickBotNames(3);
-      state.actors = [
-        createActor(0, CONFIG.MAP_W * 0.5, CONFIG.MAP_H * 0.5, ACTOR_COLORS[0], PLAYER_NAME, true),
-        createActor(1, CONFIG.MAP_W * 0.45, CONFIG.MAP_H * 0.45, ACTOR_COLORS[1], botNames[0], false),
-        createActor(2, CONFIG.MAP_W * 0.55, CONFIG.MAP_H * 0.45, ACTOR_COLORS[2], botNames[1], false),
-        createActor(3, CONFIG.MAP_W * 0.50, CONFIG.MAP_H * 0.58, ACTOR_COLORS[3], botNames[2], false)
-      ];
-    }
-
-    function scheduleJoinIntro() {
-      state.joinElapsedMs = 0;
-      state.joinEvents.length = 0;
-      state.joinNextEventIndex = 0;
-      joinTitle.textContent = "참가자 입장 중...";
-      joinFeed.innerHTML = "";
-      joinFeed.style.display = "grid";
-      joinSub.textContent = "1/4 참가자 준비";
-      joinSub.style.display = "block";
-      joinStartFx.style.display = "none";
-      joinCountdown.textContent = `게임 시작까지 ${CONFIG.JOIN_TOTAL_SEC.toFixed(1)}초`;
-      joinCountdown.style.display = "block";
-      joinBarFill.style.width = "0%";
-      const joinTimes = [];
-      const maxJoinSec = Math.min(CONFIG.JOIN_EVENT_MAX_SEC, CONFIG.JOIN_TOTAL_SEC - 0.2);
-      for (const actor of state.actors) {
-        if (actor.isPlayer) continue;
-        actor.joined = false;
-        actor.joinAnimating = false;
-        actor.joinAnimStartSec = -1;
-        actor.x = actor.anchorX;
-        actor.y = actor.anchorY;
-        const atSec = randRange(CONFIG.JOIN_EVENT_MIN_SEC, maxJoinSec);
-        joinTimes.push({ atSec, actorId: actor.id, text: `${actor.name} 님이 합류했습니다` });
-      }
-      joinTimes.sort((a, b) => a.atSec - b.atSec);
-      state.joinEvents.push(...joinTimes);
-    }
-
-    function spawnOneDot() {
-      for (let i = 0; i < 20; i += 1) {
-        const x = randRange(16, CONFIG.MAP_W - 16);
-        const y = randRange(16, CONFIG.MAP_H - 16);
-        let valid = true;
-        for (const actor of state.actors) {
-          if (distSq(x, y, actor.x, actor.y) < CONFIG.SPAWN_SAFE_RADIUS * CONFIG.SPAWN_SAFE_RADIUS) {
-            valid = false;
-            break;
-          }
-        }
-        if (!valid) continue;
-        const t = chooseDotType();
-        let vx = 0;
-        let vy = 0;
-        let ttlSec = -1;
-        if (t.key === "chaser") {
-          const ang = Math.random() * Math.PI * 2;
-          const spd = randRange(CONFIG.CHASER_SPEED_MIN, CONFIG.CHASER_SPEED_MAX);
-          vx = Math.cos(ang) * spd;
-          vy = Math.sin(ang) * spd;
-          ttlSec = randRange(CONFIG.CHASER_LIFETIME_MIN, CONFIG.CHASER_LIFETIME_MAX);
-        }
-        state.dots.push({
-          id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random()}`,
-          x, y, type: t.key, baseScore: t.baseScore, comboGain: t.comboGain, color: t.color, radius: t.radius,
-          vx, vy, ttlSec,
-          launchVx: 0,
-          launchVy: 0,
-          launchSec: 0,
-          noCollectUntilSec: 0
-        });
-        return;
-      }
-    }
-
-    function fillInitialDots() {
-      state.dots.length = 0;
-      for (let i = 0; i < CONFIG.SPAWN_MIN; i += 1) spawnOneDot();
-    }
-
-    function resetJoystick() {
-      state.joystick.active = false;
-      state.joystick.pointerId = null;
-      state.joystick.dirX = 0;
-      state.joystick.dirY = 0;
-      state.joystick.power = 0;
-    }
-
-    function prepareRoundState() {
-      initActors();
-      fillInitialDots();
-      state.particles.length = 0;
-      state.comboEffects.length = 0;
-      state.spawnAccumulator = 0;
-      state.qualityReduced = false;
-      state.fpsMonitor.timer = 0;
-      state.fpsMonitor.frames = 0;
-      state.fpsMonitor.currentFps = 60;
-      state.camera.zoom = CONFIG.ZOOM_MAX;
-      state.camera.x = CONFIG.MAP_W * 0.5;
-      state.camera.y = CONFIG.MAP_H * 0.5;
-      resetJoystick();
-      state.running = false;
-      state.ended = false;
-      state.startTimeMs = 0;
-      state.lastFrameTimeMs = performance.now();
-      state.elapsedMs = 0;
-      state.remainingMs = CONFIG.SESSION_MS;
-      hideResultPanel();
-    }
-
-    function startJoinScene() {
-      prepareRoundState();
-      scheduleJoinIntro();
-      state.joinSceneActive = true;
-      state.gameStartSceneActive = false;
-      state.joinSceneStartMs = performance.now();
-      state.lastFrameTimeMs = state.joinSceneStartMs;
-      showJoinPanel();
-    }
-
-    function startGameStartScene(nowMs) {
-      state.gameStartSceneActive = true;
-      state.gameStartElapsedMs = 0;
-      state.gameStartReady = false;
-      state.lastFrameTimeMs = nowMs;
-      gameStartCard.style.opacity = "1";
-      gameStartCard.style.transform = "scale(1)";
-      showGameStartPanel();
-    }
-
-    function beginGameplay(nowMs) {
-      state.gameStartSceneActive = false;
-      hideGameStartPanel();
-      state.running = true;
-      state.startTimeMs = nowMs;
-      state.lastFrameTimeMs = nowMs;
-      state.elapsedMs = 0;
-      state.remainingMs = CONFIG.SESSION_MS;
-      for (const actor of state.actors) {
-        actor.joined = true;
+  function updateJoinAnimations(nowSec) {
+    for (const actor of state.actors) {
+      if (!actor.joinAnimating) continue;
+      const t = (nowSec - actor.joinAnimStartSec) / actor.joinAnimDurationSec;
+      if (t >= 1) {
         actor.joinAnimating = false;
         actor.x = actor.anchorX;
         actor.y = actor.anchorY;
-        if (!actor.isPlayer) actor.joinBadgeUntilSec = CONFIG.JOIN_BADGE_GAME_SEC;
+        continue;
       }
+      const e = easeOutCubic(t);
+      actor.x = lerp(actor.joinFromX, actor.anchorX, e);
+      actor.y = lerp(actor.joinFromY, actor.anchorY, e);
     }
+  }
 
-    // 5) Input
-    function canvasPointFromEvent(evt) {
-      const r = canvas.getBoundingClientRect();
-      return { x: evt.clientX - r.left, y: evt.clientY - r.top };
+  function hideJoinPanel() {
+    joinPanel.style.display = "none";
+  }
+
+  function showJoinPanel() {
+    joinPanel.style.display = "flex";
+  }
+
+  function hideGameStartPanel() {
+    gameStartPanel.style.display = "none";
+  }
+
+  function showGameStartPanel() {
+    gameStartPanel.style.display = "flex";
+    gameStartCard.style.opacity = "1";
+    gameStartCard.style.transform = "scale(1.08)";
+  }
+
+  function startGameStartScene(nowMs) {
+    state.gameStartActive = true;
+    state.gameStartReady = false;
+    state.gameStartElapsedMs = 0;
+    state.gameStartStartMs = nowMs;
+    state.lastFrameTimeMs = nowMs;
+    showGameStartPanel();
+  }
+
+  function updateGameStartScene(nowMs) {
+    const dt = clamp((nowMs - state.lastFrameTimeMs) / 1000, 0, 0.05);
+    state.lastFrameTimeMs = nowMs;
+    state.gameStartElapsedMs += dt * 1000;
+    const totalMs = CONFIG.GAME_START_FX_SEC * 1000;
+    const holdMs = 700;
+    const fadeSpanMs = Math.max(1, totalMs - holdMs);
+    let opacity = 1;
+    if (state.gameStartElapsedMs > holdMs) {
+      const fadeT = clamp((state.gameStartElapsedMs - holdMs) / fadeSpanMs, 0, 1);
+      opacity = 1 - fadeT;
     }
-
-    function isPointInGameView(point) {
-      const v = state.gameView;
-      return point.x >= v.x && point.x <= v.x + v.width
-        && point.y >= v.y && point.y <= v.y + v.height;
+    const pulseT = clamp(state.gameStartElapsedMs / totalMs, 0, 1);
+    const scale = 1.08 - pulseT * 0.08;
+    gameStartCard.style.opacity = opacity.toFixed(3);
+    gameStartCard.style.transform = `scale(${scale.toFixed(3)})`;
+    if (state.gameStartElapsedMs >= totalMs) {
+      state.gameStartElapsedMs = totalMs;
+      state.gameStartReady = true;
     }
+  }
 
-    function updateJoystickByPointer(evt) {
-      const p = canvasPointFromEvent(evt);
-      const j = state.joystick;
-      const dx = p.x - j.baseX;
-      const dy = p.y - j.baseY;
-      const dist = Math.hypot(dx, dy);
-      const joystickMax = getJoystickMaxPx();
-      const clampedDist = Math.min(dist, joystickMax);
-      const nx = dist > 0 ? dx / dist : 0;
-      const ny = dist > 0 ? dy / dist : 0;
-      j.knobX = j.baseX + nx * clampedDist;
-      j.knobY = j.baseY + ny * clampedDist;
-      j.dirX = nx;
-      j.dirY = ny;
-      j.power = clamp(clampedDist / joystickMax, 0, 1);
+  function beginGameplay(nowMs) {
+    hideGameStartPanel();
+    state.gameStartActive = false;
+    for (const a of state.actors) {
+      a.joined = true;
+      a.joinAnimating = false;
+      a.x = a.anchorX;
+      a.y = a.anchorY;
+      a.score = 0;
+      a.combo = 0;
+      a.comboChainCount = 0;
+      a.lastCollectSec = -999;
+      a.feverUntil = 0;
+      a.hazardFlashUntil = 0;
+      a.scoreReachedAt = 0;
     }
+    state.dots.length = 0;
+    state.particles.length = 0;
+    state.comboEffects.length = 0;
+    initDots(220);
+    state.spawnTimer = 0;
+    state.elapsedMs = 0;
+    state.remainingMs = CONFIG.SESSION_MS;
+    state.startTimeMs = nowMs;
+    state.lastFrameTimeMs = nowMs;
+    state.ended = false;
+    state.running = true;
+    joystickEl.classList.add("active");
+  }
 
-    canvas.addEventListener("pointerdown", (evt) => {
-      if (!state.running || state.ended || state.joystick.active) return;
-      const p = canvasPointFromEvent(evt);
-      if (!isPointInGameView(p)) return;
-      const j = state.joystick;
-      j.active = true;
-      j.pointerId = evt.pointerId;
-      j.baseX = p.x;
-      j.baseY = p.y;
-      j.knobX = p.x;
-      j.knobY = p.y;
-      j.dirX = 0;
-      j.dirY = 0;
-      j.power = 0;
-      canvas.setPointerCapture(evt.pointerId);
-    });
+  function startJoinScene() {
+    resultPanel.style.display = "none";
+    startPanel.style.display = "none";
+    state.running = false;
+    state.ended = false;
+    state.joinSceneActive = true;
+    state.joinElapsedMs = 0;
+    state.gameStartActive = false;
+    state.gameStartReady = false;
+    buildActorsForRound();
+    scheduleJoinIntro();
+    joinBarFill.style.width = "0%";
+    showJoinPanel();
+    state.lastFrameTimeMs = performance.now();
+  }
 
-    canvas.addEventListener("pointermove", (evt) => {
-      if (!state.joystick.active || state.joystick.pointerId !== evt.pointerId) return;
-      updateJoystickByPointer(evt);
-    });
+  function emitCollectionParticles(dot) {
+    const qualityMul = state.qualityReduced ? 0.7 : 1.0;
+    const tier = {
+      normal: { count: 8, speedMin: 100, speedMax: 420, lifeMin: 0.35, lifeMax: 0.6, sizeMin: 2, sizeMax: 6, colors: [dot.color, "#9fefff"] },
+      bonus: { count: 12, speedMin: 140, speedMax: 500, lifeMin: 0.42, lifeMax: 0.72, sizeMin: 2.5, sizeMax: 7.5, colors: [dot.color, "#c9ff9a", "#7dff8e"] },
+      fever: { count: 18, speedMin: 180, speedMax: 600, lifeMin: 0.48, lifeMax: 0.82, sizeMin: 3, sizeMax: 9.5, colors: [dot.color, "#ff8ee2", "#ffd0ff"] },
+      chaser: { count: 16, speedMin: 170, speedMax: 580, lifeMin: 0.45, lifeMax: 0.8, sizeMin: 2.8, sizeMax: 8.8, colors: [dot.color, "#d4a8ff", "#f0dcff"] },
+      hazard: { count: 14, speedMin: 150, speedMax: 540, lifeMin: 0.4, lifeMax: 0.75, sizeMin: 2.6, sizeMax: 8.2, colors: [dot.color, "#ff9b66", "#ffd2b8"] }
+    }[dot.type] || { count: 8, speedMin: 100, speedMax: 420, lifeMin: 0.35, lifeMax: 0.6, sizeMin: 2, sizeMax: 6, colors: [dot.color] };
 
-    function onPointerEnd(evt) {
-      if (!state.joystick.active || state.joystick.pointerId !== evt.pointerId) return;
-      resetJoystick();
-      if (canvas.hasPointerCapture(evt.pointerId)) canvas.releasePointerCapture(evt.pointerId);
-    }
+    const count = Math.floor(tier.count * qualityMul * 2.0);
+    const bigCount = Math.max(1, Math.floor(count * 0.28));
 
-    canvas.addEventListener("pointerup", onPointerEnd);
-    canvas.addEventListener("pointercancel", onPointerEnd);
-    canvas.addEventListener("pointerleave", (evt) => { if (evt.pointerType === "mouse") onPointerEnd(evt); });
-
-    function setKeyState(code, isDown) {
-      if (code === "KeyW" || code === "ArrowUp") state.keyboard.up = isDown;
-      if (code === "KeyS" || code === "ArrowDown") state.keyboard.down = isDown;
-      if (code === "KeyA" || code === "ArrowLeft") state.keyboard.left = isDown;
-      if (code === "KeyD" || code === "ArrowRight") state.keyboard.right = isDown;
-    }
-
-    window.addEventListener("keydown", (evt) => setKeyState(evt.code, true));
-    window.addEventListener("keyup", (evt) => setKeyState(evt.code, false));
-    window.addEventListener("blur", () => {
-      state.keyboard.up = false;
-      state.keyboard.down = false;
-      state.keyboard.left = false;
-      state.keyboard.right = false;
-    });
-
-    function keyboardMoveVector() {
-      const x = (state.keyboard.right ? 1 : 0) - (state.keyboard.left ? 1 : 0);
-      const y = (state.keyboard.down ? 1 : 0) - (state.keyboard.up ? 1 : 0);
-      const mag = Math.hypot(x, y);
-      if (mag <= 0) return { x: 0, y: 0, power: 0 };
-      return { x: x / mag, y: y / mag, power: 1 };
-    }
-
-    // Fullscreen
-    function isIOSLikeDevice() {
-      const ua = navigator.userAgent || "";
-      return /iPad|iPhone|iPod/.test(ua)
-        || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-    }
-
-    function fullscreenRequestFn() {
-      const el = document.documentElement;
-      return el.requestFullscreen
-        || el.webkitRequestFullscreen
-        || el.msRequestFullscreen
-        || null;
-    }
-
-    function fullscreenExitFn() {
-      return document.exitFullscreen
-        || document.webkitExitFullscreen
-        || document.msExitFullscreen
-        || null;
-    }
-
-    function isFullscreenActive() {
-      return Boolean(
-        document.fullscreenElement
-        || document.webkitFullscreenElement
-        || document.msFullscreenElement
-      );
-    }
-
-    function updateFullscreenButtonLabel() {
-      fullscreenBtn.textContent = isFullscreenActive() ? "창화면으로 보기" : "전체화면으로 보기";
-    }
-
-    async function requestFullscreenBestEffort() {
-      const fn = fullscreenRequestFn();
-      if (!fn) {
-        fsHint.textContent = isIOSLikeDevice()
-          ? "iOS는 공유 > 홈 화면에 추가로 실행하면 더 크게 플레이할 수 있습니다."
-          : "이 브라우저는 전체화면 API를 지원하지 않습니다.";
-        return false;
-      }
-      try {
-        const ret = fn.call(document.documentElement);
-        if (ret && typeof ret.then === "function") await ret;
-        fsHint.textContent = "";
-        return true;
-      } catch (err) {
-        fsHint.textContent = "전체화면 전환에 실패했습니다. 브라우저 메뉴에서 전체화면을 시도해 주세요.";
-        return false;
-      }
-    }
-
-    async function toggleFullscreenBestEffort() {
-      if (isFullscreenActive()) {
-        const exitFn = fullscreenExitFn();
-        if (!exitFn) {
-          fsHint.textContent = "이 브라우저는 창화면 전환 API를 지원하지 않습니다.";
-          return false;
-        }
-        try {
-          const ret = exitFn.call(document);
-          if (ret && typeof ret.then === "function") await ret;
-          fsHint.textContent = "";
-          return true;
-        } catch (err) {
-          fsHint.textContent = "창화면 전환에 실패했습니다.";
-          return false;
-        }
-      }
-      return requestFullscreenBestEffort();
-    }
-
-    // 6) Game update
-    function updatePlayer(dt) {
-      const player = state.actors[0];
-      const kb = keyboardMoveVector();
-      const inputX = kb.power > 0 ? kb.x : state.joystick.dirX;
-      const inputY = kb.power > 0 ? kb.y : state.joystick.dirY;
-      const inputPower = kb.power > 0 ? kb.power : state.joystick.power;
-      const speed = actorSpeed(player) * inputPower;
-      player.x = clamp(player.x + inputX * speed * dt, 0, CONFIG.MAP_W);
-      player.y = clamp(player.y + inputY * speed * dt, 0, CONFIG.MAP_H);
-    }
-
-    function findDotById(dotId) {
-      if (!dotId) return null;
-      for (const dot of state.dots) if (dot.id === dotId) return dot;
-      return null;
-    }
-
-    function retargetBot(bot) {
-      const botRank = getRankIndex(bot);
-      let bestDot = null;
-      let bestScore = -Infinity;
-      for (const dot of state.dots) {
-        const distance = Math.hypot(dot.x - bot.x, dot.y - bot.y);
-        const total = dot.baseScore + (-distance * 0.08) + (botRank >= 3 ? 8 : 0);
-        if (total > bestScore) {
-          bestScore = total;
-          bestDot = dot;
-        }
-      }
-      bot.targetDotId = bestDot ? bestDot.id : null;
-    }
-
-    function updateBots(dt) {
-      for (let i = 1; i < state.actors.length; i += 1) {
-        const bot = state.actors[i];
-        bot.retargetTimer += dt;
-        let target = findDotById(bot.targetDotId);
-        if (!target || bot.retargetTimer >= CONFIG.BOT_RETARGET_INTERVAL) {
-          bot.retargetTimer = 0;
-          retargetBot(bot);
-          target = findDotById(bot.targetDotId);
-        }
-        if (!target) {
-          bot.vx *= 0.92;
-          bot.vy *= 0.92;
-          bot.x = clamp(bot.x + bot.vx * dt, 0, CONFIG.MAP_W);
-          bot.y = clamp(bot.y + bot.vy * dt, 0, CONFIG.MAP_H);
-          continue;
-        }
-        const dx = target.x - bot.x;
-        const dy = target.y - bot.y;
-        const mag = Math.hypot(dx, dy);
-        const nx = mag > 0 ? dx / mag : 0;
-        const ny = mag > 0 ? dy / mag : 0;
-        const speed = actorSpeed(bot);
-        bot.vx = nx * speed;
-        bot.vy = ny * speed;
-        bot.x = clamp(bot.x + bot.vx * dt, 0, CONFIG.MAP_W);
-        bot.y = clamp(bot.y + bot.vy * dt, 0, CONFIG.MAP_H);
-      }
-    }
-
-    function emitCollectionParticles(dot) {
-      const qualityMul = state.qualityReduced ? 0.7 : 1.0;
-      const tier = {
-        normal: { count: 8, speedMin: 100, speedMax: 420, lifeMin: 0.35, lifeMax: 0.6, sizeMin: 2, sizeMax: 6, colors: [dot.color, "#9fefff"] },
-        bonus: { count: 12, speedMin: 140, speedMax: 500, lifeMin: 0.42, lifeMax: 0.72, sizeMin: 2.5, sizeMax: 7.5, colors: [dot.color, "#c9ff9a", "#7dff8e"] },
-        fever: { count: 18, speedMin: 180, speedMax: 600, lifeMin: 0.48, lifeMax: 0.82, sizeMin: 3, sizeMax: 9.5, colors: [dot.color, "#ff8ee2", "#ffd0ff"] },
-        chaser: { count: 16, speedMin: 170, speedMax: 580, lifeMin: 0.45, lifeMax: 0.8, sizeMin: 2.8, sizeMax: 8.8, colors: [dot.color, "#d4a8ff", "#f0dcff"] },
-        hazard: { count: 14, speedMin: 150, speedMax: 540, lifeMin: 0.4, lifeMax: 0.75, sizeMin: 2.6, sizeMax: 8.2, colors: [dot.color, "#ff9b66", "#ffd2b8"] }
-      }[dot.type] || { count: 8, speedMin: 100, speedMax: 420, lifeMin: 0.35, lifeMax: 0.6, sizeMin: 2, sizeMax: 6, colors: [dot.color] };
-
-      // Requested: overall impact around 2x larger.
-      const count = Math.floor(tier.count * qualityMul * 2.0);
-      const bigCount = Math.max(1, Math.floor(count * 0.28));
-
-      for (let i = 0; i < count; i += 1) {
-        if (state.particles.length >= CONFIG.PARTICLE_CAP) break;
-        const angle = Math.random() * Math.PI * 2;
-        const speed = randRange(tier.speedMin, tier.speedMax);
-        const life = randRange(tier.lifeMin, tier.lifeMax);
-        state.particles.push({
-          x: dot.x,
-          y: dot.y,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed,
-          life, maxLife: life,
-          size: randRange(tier.sizeMin, tier.sizeMax) * 1.2,
-          color: tier.colors[Math.floor(Math.random() * tier.colors.length)]
-        });
-      }
-
-      // Add a few large shards so higher tiers feel flashier.
-      for (let i = 0; i < bigCount; i += 1) {
-        if (state.particles.length >= CONFIG.PARTICLE_CAP) break;
-        const angle = Math.random() * Math.PI * 2;
-        const speed = randRange(tier.speedMin * 1.1, tier.speedMax * 1.35);
-        const life = randRange(tier.lifeMin * 0.9, tier.lifeMax * 1.1);
-        state.particles.push({
-          x: dot.x,
-          y: dot.y,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed,
-          life, maxLife: life,
-          size: randRange(tier.sizeMax * 0.95, tier.sizeMax * 1.5),
-          color: tier.colors[Math.floor(Math.random() * tier.colors.length)]
-        });
-      }
-    }
-
-    function emitComboEffect(chainCount) {
-      const tier = comboTierForCount(chainCount);
-      const sizeMul = 1 + tier * 0.1;
-      state.comboEffects.length = 0;
-      state.comboEffects.push({
-        life: 0.9,
-        maxLife: 0.9,
-        scale: 1.24 * sizeMul,
-        fontSize: 26 * sizeMul,
-        text: `COMBO x${chainCount}`,
-        color: comboColorForCount(chainCount)
+    for (let i = 0; i < count; i += 1) {
+      if (state.particles.length >= CONFIG.PARTICLE_CAP) break;
+      const angle = Math.random() * Math.PI * 2;
+      const speed = randRange(tier.speedMin, tier.speedMax);
+      const life = randRange(tier.lifeMin, tier.lifeMax);
+      state.particles.push({
+        x: dot.x,
+        y: dot.y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life,
+        maxLife: life,
+        size: randRange(tier.sizeMin, tier.sizeMax) * 1.2,
+        color: tier.colors[Math.floor(Math.random() * tier.colors.length)]
       });
     }
-
-    function scatterPenaltyDots(actor, lostScore) {
-      const count = clamp(
-        Math.ceil(lostScore / 12),
-        CONFIG.HAZARD_SCATTER_MIN_DOTS,
-        CONFIG.HAZARD_SCATTER_MAX_DOTS
-      );
-      const dotScores = [];
-      let remaining = lostScore;
-      for (let i = 0; i < count; i += 1) {
-        const restDots = count - i;
-        const share = Math.max(1, Math.floor(remaining / restDots));
-        dotScores.push(share);
-        remaining -= share;
-      }
-      if (remaining > 0) dotScores[dotScores.length - 1] += remaining;
-      const burstCount = clamp(count * 3, 10, 30);
-      for (let i = 0; i < burstCount; i += 1) {
-        if (state.particles.length >= CONFIG.PARTICLE_CAP) break;
-        const ang = Math.random() * Math.PI * 2;
-        const spd = randRange(120, 360);
-        const life = randRange(0.25, 0.5);
-        state.particles.push({
-          x: actor.x,
-          y: actor.y,
-          vx: Math.cos(ang) * spd,
-          vy: Math.sin(ang) * spd,
-          life,
-          maxLife: life,
-          size: randRange(2.5, 6.5),
-          color: Math.random() < 0.6 ? "#ff4d4f" : "#ff9b66"
-        });
-      }
-      for (let i = 0; i < count; i += 1) {
-        const angle = (Math.PI * 2 * i) / count + randRange(-0.2, 0.2);
-        const launchSpeed = randRange(CONFIG.HAZARD_SCATTER_LAUNCH_SPEED_MIN, CONFIG.HAZARD_SCATTER_LAUNCH_SPEED_MAX);
-        state.dots.push({
-          id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random()}`,
-          x: actor.x,
-          y: actor.y,
-          type: "normal",
-          baseScore: dotScores[i],
-          comboGain: 1,
-          color: "#54e7ff",
-          radius: 5,
-          vx: 0,
-          vy: 0,
-          ttlSec: -1,
-          launchVx: Math.cos(angle) * launchSpeed,
-          launchVy: Math.sin(angle) * launchSpeed,
-          launchSec: CONFIG.HAZARD_SCATTER_LAUNCH_SEC,
-          noCollectUntilSec: (state.elapsedMs / 1000) + CONFIG.HAZARD_SCATTER_LAUNCH_SEC
-        });
-      }
+    for (let i = 0; i < bigCount; i += 1) {
+      if (state.particles.length >= CONFIG.PARTICLE_CAP) break;
+      const angle = Math.random() * Math.PI * 2;
+      const speed = randRange(tier.speedMin * 1.1, tier.speedMax * 1.35);
+      const life = randRange(tier.lifeMin * 0.9, tier.lifeMax * 1.1);
+      state.particles.push({
+        x: dot.x,
+        y: dot.y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life,
+        maxLife: life,
+        size: randRange(tier.sizeMax * 0.95, tier.sizeMax * 1.5),
+        color: tier.colors[Math.floor(Math.random() * tier.colors.length)]
+      });
     }
+  }
 
-    function applyCollection(actor, dot) {
-      const nowSec = state.elapsedMs / 1000;
-      if (dot.type === "hazard") {
-        const actualLost = Math.min(actor.score, Math.floor(actor.score * CONFIG.HAZARD_PENALTY_RATE));
-        actor.score = Math.max(0, actor.score - actualLost);
-        actor.scoreReachedAt = state.elapsedMs;
-        actor.hazardFlashUntil = nowSec + CONFIG.HAZARD_FLASH_SEC;
-        if (actualLost > 0) scatterPenaltyDots(actor, actualLost);
-        emitCollectionParticles(dot);
-        return;
-      }
-      const inChainWindow = nowSec - actor.lastCollectSec <= CONFIG.COMBO_CHAIN_WINDOW_SEC;
-      actor.comboChainCount = inChainWindow ? actor.comboChainCount + 1 : 1;
-      actor.combo = Math.min(CONFIG.MAX_COMBO, actor.combo + dot.comboGain);
-      actor.score += dot.baseScore + actor.combo * 2;
-      actor.lastCollectSec = nowSec;
+  function comboColorForCount(chainCount) {
+    if (chainCount <= 15) return "#f2f7ff";
+    if (chainCount <= 30) return "#7ec8ff";
+    if (chainCount <= 45) return "#ffe566";
+    if (chainCount <= 60) return "#ff7a7a";
+    return "#e0a6ff";
+  }
+
+  function comboTierForCount(chainCount) {
+    return Math.min(4, Math.floor((chainCount - 1) / 15));
+  }
+
+  function emitComboEffect(chainCount) {
+    const tier = comboTierForCount(chainCount);
+    const sizeMul = 1 + tier * 0.1;
+    state.comboEffects.length = 0;
+    state.comboEffects.push({
+      life: 0.9,
+      maxLife: 0.9,
+      scale: 1.24 * sizeMul,
+      fontSize: 26 * sizeMul,
+      text: `COMBO x${chainCount}`,
+      color: comboColorForCount(chainCount)
+    });
+  }
+
+  function scatterPenaltyDots(actor, lostScore) {
+    const count = clamp(
+      Math.ceil(lostScore / 12),
+      CONFIG.HAZARD_SCATTER_MIN_DOTS,
+      CONFIG.HAZARD_SCATTER_MAX_DOTS
+    );
+    const dotScores = [];
+    let remaining = lostScore;
+    for (let i = 0; i < count; i += 1) {
+      const restDots = count - i;
+      const share = Math.max(1, Math.floor(remaining / restDots));
+      dotScores.push(share);
+      remaining -= share;
+    }
+    if (remaining > 0) dotScores[dotScores.length - 1] += remaining;
+    const burstCount = clamp(count * 3, 10, 30);
+    for (let i = 0; i < burstCount; i += 1) {
+      if (state.particles.length >= CONFIG.PARTICLE_CAP) break;
+      const ang = Math.random() * Math.PI * 2;
+      const spd = randRange(120, 360);
+      const life = randRange(0.25, 0.5);
+      state.particles.push({
+        x: actor.x,
+        y: actor.y,
+        vx: Math.cos(ang) * spd,
+        vy: Math.sin(ang) * spd,
+        life,
+        maxLife: life,
+        size: randRange(2.5, 6.5),
+        color: Math.random() < 0.6 ? "#ff4d4f" : "#ff9b66"
+      });
+    }
+    const nowSec = state.elapsedMs / 1000;
+    for (let i = 0; i < count; i += 1) {
+      const angle = (Math.PI * 2 * i) / count + randRange(-0.2, 0.2);
+      const launchSpeed = randRange(
+        CONFIG.HAZARD_SCATTER_LAUNCH_SPEED_MIN,
+        CONFIG.HAZARD_SCATTER_LAUNCH_SPEED_MAX
+      );
+      state.dots.push({
+        id: newId(),
+        x: actor.x,
+        y: actor.y,
+        type: "normal",
+        baseScore: dotScores[i],
+        comboGain: 1,
+        color: "#54e7ff",
+        radius: 5,
+        vx: 0,
+        vy: 0,
+        ttlSec: -1,
+        launchVx: Math.cos(angle) * launchSpeed,
+        launchVy: Math.sin(angle) * launchSpeed,
+        launchSec: CONFIG.HAZARD_SCATTER_LAUNCH_SEC,
+        noCollectUntilSec: nowSec + CONFIG.HAZARD_SCATTER_LAUNCH_SEC
+      });
+    }
+  }
+
+  function applyCollection(actor, dot) {
+    const nowSec = state.elapsedMs / 1000;
+    if (dot.type === "hazard") {
+      const actualLost = Math.min(actor.score, Math.floor(actor.score * CONFIG.HAZARD_PENALTY_RATE));
+      actor.score = Math.max(0, actor.score - actualLost);
       actor.scoreReachedAt = state.elapsedMs;
-      if (dot.type === "fever") actor.feverUntil = nowSec + CONFIG.FEVER_SECONDS;
+      actor.hazardFlashUntil = nowSec + CONFIG.HAZARD_FLASH_SEC;
+      if (actualLost > 0) scatterPenaltyDots(actor, actualLost);
       emitCollectionParticles(dot);
-      if (actor.isPlayer && actor.comboChainCount >= 2) emitComboEffect(actor.comboChainCount);
+      return;
     }
+    const inChainWindow = nowSec - actor.lastCollectSec <= CONFIG.COMBO_CHAIN_WINDOW_SEC;
+    actor.comboChainCount = inChainWindow ? actor.comboChainCount + 1 : 1;
+    actor.combo = Math.min(CONFIG.MAX_COMBO, actor.combo + dot.comboGain);
+    actor.score += dot.baseScore + actor.combo * 2;
+    actor.lastCollectSec = nowSec;
+    actor.scoreReachedAt = state.elapsedMs;
+    if (dot.type === "fever") actor.feverUntil = nowSec + CONFIG.FEVER_SECONDS;
+    emitCollectionParticles(dot);
+    if (actor.isPlayer && actor.comboChainCount >= 2) emitComboEffect(actor.comboChainCount);
+  }
 
-    function updateCollections() {
-      const nowSec = state.elapsedMs / 1000;
-      for (const actor of state.actors) {
-        const collectR = actorCollectRadius(actor);
-        for (let i = state.dots.length - 1; i >= 0; i -= 1) {
-          const dot = state.dots[i];
+  function updateCollections() {
+    const nowSec = state.elapsedMs / 1000;
+    for (const actor of state.actors) {
+      const collectR = actorCollectRadius(actor);
+      for (let i = state.dots.length - 1; i >= 0; i -= 1) {
+        const dot = state.dots[i];
+        if ((dot.launchSec || 0) > 0) continue;
+        if (nowSec < (dot.noCollectUntilSec || 0)) continue;
+        const totalR = collectR + dot.radius;
+        if (distSq(actor.x, actor.y, dot.x, dot.y) <= totalR * totalR) {
+          applyCollection(actor, dot);
+          state.dots.splice(i, 1);
+        }
+      }
+    }
+  }
+
+  function updateMovingDots(dt) {
+    for (let i = state.dots.length - 1; i >= 0; i -= 1) {
+      const d = state.dots[i];
+      if (d.launchSec > 0) {
+        d.x += d.launchVx * dt;
+        d.y += d.launchVy * dt;
+        d.launchVx *= 0.985;
+        d.launchVy *= 0.985;
+        d.launchSec -= dt;
+        if (d.launchSec <= 0) {
+          d.launchSec = 0;
+          d.launchVx = 0;
+          d.launchVy = 0;
+        }
+        continue;
+      }
+      if (d.type !== "chaser") continue;
+      d.x += d.vx * dt;
+      d.y += d.vy * dt;
+      if (d.x < d.radius) { d.x = d.radius; d.vx = Math.abs(d.vx); }
+      else if (d.x > CONFIG.MAP_W - d.radius) { d.x = CONFIG.MAP_W - d.radius; d.vx = -Math.abs(d.vx); }
+      if (d.y < d.radius) { d.y = d.radius; d.vy = Math.abs(d.vy); }
+      else if (d.y > CONFIG.MAP_H - d.radius) { d.y = CONFIG.MAP_H - d.radius; d.vy = -Math.abs(d.vy); }
+      d.ttlSec -= dt;
+      if (d.ttlSec <= 0) state.dots.splice(i, 1);
+    }
+  }
+
+  function maintainDots(dt) {
+    state.spawnTimer += dt;
+    if (state.spawnTimer < CONFIG.SPAWN_INTERVAL) return;
+    state.spawnTimer = 0;
+    if (state.dots.length < CONFIG.SPAWN_MIN) {
+      while (state.dots.length < CONFIG.SPAWN_TARGET && state.dots.length < CONFIG.SPAWN_MAX) {
+        spawnOneDot();
+      }
+    } else if (state.dots.length < CONFIG.SPAWN_TARGET && Math.random() < 0.35) {
+      spawnOneDot();
+    }
+  }
+
+  function updateComboChainTimeout(actor) {
+    const nowSec = state.elapsedMs / 1000;
+    if (nowSec - actor.lastCollectSec > CONFIG.COMBO_CHAIN_WINDOW_SEC) actor.comboChainCount = 0;
+  }
+
+  function updateComboDecay(actor, dt) {
+    const nowSec = state.elapsedMs / 1000;
+    if (nowSec - actor.lastCollectSec <= CONFIG.COMBO_DECAY_DELAY) return;
+    if (actor.combo <= 0) return;
+    actor.combo = Math.max(0, actor.combo - CONFIG.COMBO_DECAY_PER_SEC * dt);
+  }
+
+  function updateParticles(dt) {
+    for (let i = state.particles.length - 1; i >= 0; i -= 1) {
+      const p = state.particles[i];
+      p.life -= dt;
+      if (p.life <= 0) {
+        state.particles.splice(i, 1);
+        continue;
+      }
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vx *= 0.93;
+      p.vy *= 0.93;
+    }
+  }
+
+  function updateComboEffects(dt) {
+    for (let i = state.comboEffects.length - 1; i >= 0; i -= 1) {
+      const e = state.comboEffects[i];
+      e.life -= dt;
+      if (e.life <= 0) state.comboEffects.splice(i, 1);
+    }
+  }
+
+  function botRank(bot) {
+    const ranks = sortedRanks();
+    const idx = ranks.findIndex((r) => r.id === bot.id);
+    return idx >= 0 ? idx + 1 : 4;
+  }
+
+  function sortedRanks() {
+    return [...state.actors].sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return a.scoreReachedAt - b.scoreReachedAt;
+    });
+  }
+
+  function updateBots(dt) {
+    const nowSec = state.elapsedMs / 1000;
+    for (const bot of state.actors) {
+      if (bot.isPlayer) continue;
+      if (bot.botRetargetAt <= nowSec) {
+        bot.botRetargetAt = nowSec + CONFIG.BOT_RETARGET_INTERVAL;
+        let best = null;
+        let bestScore = -1e9;
+        const rank = botRank(bot);
+        for (const dot of state.dots) {
           if ((dot.launchSec || 0) > 0) continue;
           if (nowSec < (dot.noCollectUntilSec || 0)) continue;
-          const totalR = collectR + dot.radius;
-          if (distSq(actor.x, actor.y, dot.x, dot.y) <= totalR * totalR) {
-            applyCollection(actor, dot);
-            state.dots.splice(i, 1);
+          const dist = Math.sqrt(distSq(bot.x, bot.y, dot.x, dot.y));
+          const valueScore = dot.baseScore * 1.0;
+          const distScore = -dist * 0.08;
+          const catchupBonus = rank >= 3 ? 8 : 0;
+          const total = valueScore + distScore + catchupBonus;
+          if (total > bestScore) {
+            bestScore = total;
+            best = dot;
           }
         }
-      }
-    }
-
-    function updateComboChainTimeout(actor) {
-      if ((state.elapsedMs / 1000) - actor.lastCollectSec > CONFIG.COMBO_CHAIN_WINDOW_SEC) {
-        actor.comboChainCount = 0;
-      }
-    }
-
-    function updateComboDecay(actor, dt) {
-      const nowSec = state.elapsedMs / 1000;
-      if (nowSec - actor.lastCollectSec <= CONFIG.COMBO_DECAY_DELAY) return;
-      actor.combo = Math.max(0, actor.combo - CONFIG.COMBO_DECAY_PER_SEC * dt);
-    }
-
-    function updateMovingDots(dt) {
-      for (let i = state.dots.length - 1; i >= 0; i -= 1) {
-        const d = state.dots[i];
-        if (d.launchSec > 0) {
-          d.x = clamp(d.x + d.launchVx * dt, 8, CONFIG.MAP_W - 8);
-          d.y = clamp(d.y + d.launchVy * dt, 8, CONFIG.MAP_H - 8);
-          d.launchVx *= 0.96;
-          d.launchVy *= 0.96;
-          if (Math.random() < 0.55 && state.particles.length < CONFIG.PARTICLE_CAP) {
-            const life = randRange(0.12, 0.24);
-            state.particles.push({
-              x: d.x,
-              y: d.y,
-              vx: -d.launchVx * 0.08 + randRange(-14, 14),
-              vy: -d.launchVy * 0.08 + randRange(-14, 14),
-              life,
-              maxLife: life,
-              size: randRange(1.6, 3.2),
-              color: "#7edbff"
-            });
-          }
-          d.launchSec -= dt;
-        }
-        if (d.type !== "chaser") continue;
-        d.ttlSec -= dt;
-        if (d.ttlSec <= 0) {
-          state.dots.splice(i, 1);
-          continue;
-        }
-        d.x += d.vx * dt;
-        d.y += d.vy * dt;
-        if (d.x < 10) {
-          d.x = 10;
-          d.vx = Math.abs(d.vx);
-        } else if (d.x > CONFIG.MAP_W - 10) {
-          d.x = CONFIG.MAP_W - 10;
-          d.vx = -Math.abs(d.vx);
-        }
-        if (d.y < 10) {
-          d.y = 10;
-          d.vy = Math.abs(d.vy);
-        } else if (d.y > CONFIG.MAP_H - 10) {
-          d.y = CONFIG.MAP_H - 10;
-          d.vy = -Math.abs(d.vy);
+        if (best) {
+          bot.botTargetX = best.x;
+          bot.botTargetY = best.y;
         }
       }
+      const dx = bot.botTargetX - bot.x;
+      const dy = bot.botTargetY - bot.y;
+      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      const speed = CONFIG.BASE_SPEED * actorSpeedMul(bot);
+      bot.vx = (dx / len) * speed;
+      bot.vy = (dy / len) * speed;
+      bot.x = clamp(bot.x + bot.vx * dt, 0, CONFIG.MAP_W);
+      bot.y = clamp(bot.y + bot.vy * dt, 0, CONFIG.MAP_H);
     }
+  }
 
-    function maintainDots(dt) {
-      state.spawnAccumulator += dt;
-      while (state.spawnAccumulator >= CONFIG.SPAWN_INTERVAL) {
-        state.spawnAccumulator -= CONFIG.SPAWN_INTERVAL;
-        if (state.dots.length < CONFIG.SPAWN_MIN) {
-          while (state.dots.length < CONFIG.SPAWN_TARGET && state.dots.length < CONFIG.SPAWN_MAX) spawnOneDot();
-        } else if (state.dots.length < CONFIG.SPAWN_TARGET) {
-          spawnOneDot();
-        }
+  function updatePlayer(dt) {
+    const player = state.actors.find((a) => a.isPlayer);
+    if (!player) return;
+    let ix = 0;
+    let iy = 0;
+    if (state.keys.ArrowUp || state.keys.w || state.keys.W) iy -= 1;
+    if (state.keys.ArrowDown || state.keys.s || state.keys.S) iy += 1;
+    if (state.keys.ArrowLeft || state.keys.a || state.keys.A) ix -= 1;
+    if (state.keys.ArrowRight || state.keys.d || state.keys.D) ix += 1;
+    const keyLen = Math.sqrt(ix * ix + iy * iy);
+    let vx = 0;
+    let vy = 0;
+    if (keyLen > 0) {
+      const speed = CONFIG.BASE_SPEED * actorSpeedMul(player);
+      vx = (ix / keyLen) * speed;
+      vy = (iy / keyLen) * speed;
+    } else if (state.pointerDown) {
+      const speed = CONFIG.BASE_SPEED * actorSpeedMul(player);
+      const jx = state.joyDx / CONFIG.JOYSTICK_MAX;
+      const jy = state.joyDy / CONFIG.JOYSTICK_MAX;
+      const jLen = Math.sqrt(jx * jx + jy * jy);
+      if (jLen > 0.08) {
+        const cap = Math.min(1, jLen);
+        vx = (jx / jLen) * speed * cap;
+        vy = (jy / jLen) * speed * cap;
       }
     }
+    player.vx = vx;
+    player.vy = vy;
+    player.x = clamp(player.x + vx * dt, 0, CONFIG.MAP_W);
+    player.y = clamp(player.y + vy * dt, 0, CONFIG.MAP_H);
+  }
 
-    function updateParticles(dt) {
-      for (let i = state.particles.length - 1; i >= 0; i -= 1) {
-        const p = state.particles[i];
-        p.life -= dt;
-        if (p.life <= 0) {
-          state.particles.splice(i, 1);
-          continue;
-        }
-        p.x += p.vx * dt;
-        p.y += p.vy * dt;
-        p.vx *= 0.93;
-        p.vy *= 0.93;
+  function updateCamera() {
+    const player = state.actors.find((a) => a.isPlayer);
+    if (!player) return;
+    const raw = (1 / (1 + player.combo * CONFIG.ZOOM_COMBO_FACTOR)) * CONFIG.CAMERA_CLOSENESS_MULTIPLIER;
+    state.targetZoom = clamp(raw, CONFIG.ZOOM_MIN, CONFIG.ZOOM_MAX);
+    state.zoom = lerp(state.zoom, state.targetZoom, CONFIG.ZOOM_LERP_ALPHA);
+    const halfW = state.gameView.width / (2 * state.zoom);
+    const halfH = state.gameView.height / (2 * state.zoom);
+    state.camX = clamp(player.x, halfW, CONFIG.MAP_W - halfW);
+    state.camY = clamp(player.y, halfH, CONFIG.MAP_H - halfH);
+  }
+
+  function updateQualityFallback(dt) {
+    state.frameCount += 1;
+    const now = performance.now();
+    if (now - state.lastFpsTick >= 1000) {
+      const fps = state.frameCount;
+      state.frameCount = 0;
+      state.lastFpsTick = now;
+      if (fps < CONFIG.FPS_LOW_THRESHOLD) state.fpsLowAccum += 1;
+      else state.fpsLowAccum = Math.max(0, state.fpsLowAccum - 0.5);
+      state.qualityReduced = state.fpsLowAccum >= CONFIG.FPS_LOW_HOLD_SEC;
+    }
+  }
+
+  function updateJoinScene(nowMs) {
+    const dt = clamp((nowMs - state.lastFrameTimeMs) / 1000, 0, 0.05);
+    state.lastFrameTimeMs = nowMs;
+    state.joinElapsedMs += dt * 1000;
+    const nowSec = state.joinElapsedMs / 1000;
+    const progress = clamp(nowSec / CONFIG.JOIN_TOTAL_SEC, 0, 1);
+    joinBarFill.style.width = `${(progress * 100).toFixed(1)}%`;
+    const remainSec = Math.max(0, CONFIG.JOIN_TOTAL_SEC - nowSec);
+    joinCountdown.textContent = `게임 시작까지 ${remainSec.toFixed(1)}초`;
+    updateJoinIntroEvents(nowSec);
+    updateJoinAnimations(nowSec);
+    if (nowSec >= CONFIG.JOIN_TOTAL_SEC) {
+      state.joinSceneActive = false;
+      hideJoinPanel();
+      startGameStartScene(nowMs);
+    }
+  }
+
+  function endGame() {
+    if (state.ended) return;
+    state.ended = true;
+    state.running = false;
+    joystickEl.classList.remove("active");
+    state.pointerDown = false;
+    showResultPanel();
+  }
+
+  function showResultPanel() {
+    resultList.innerHTML = "";
+    const ranks = sortedRanks();
+    ranks.forEach((a, i) => {
+      const li = document.createElement("li");
+      if (a.isPlayer) li.classList.add("you");
+      li.innerHTML = `<span>${i + 1}. ${a.name}</span><strong>${displayScore(a.score)}</strong>`;
+      resultList.appendChild(li);
+    });
+    resultPanel.style.display = "flex";
+  }
+
+  function displayScore(score) {
+    return Math.max(0, Math.floor(score));
+  }
+
+  function worldToCanvas(wx, wy) {
+    const gx = (wx - state.camX) * state.zoom + state.gameView.width / 2;
+    const gy = (wy - state.camY) * state.zoom + state.gameView.height / 2;
+    return {
+      x: state.gameView.x + gx * state.viewScale,
+      y: state.gameView.y + gy * state.viewScale
+    };
+  }
+
+  function withNeon(color, blur, drawFn) {
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.shadowColor = color;
+    ctx.shadowBlur = blur;
+    drawFn();
+    ctx.restore();
+  }
+
+  function drawDots(nowSec) {
+    for (const d of state.dots) {
+      const pulse = 0.85 + 0.15 * Math.sin(nowSec * 4 + d.x * 0.01);
+      const r = d.radius * pulse;
+      if (d.type === "hazard") {
+        const triR = r * 2.1;
+        const wob = 1 + 0.08 * Math.sin(nowSec * 10);
+        withNeon(d.color, state.qualityReduced ? CONFIG.SHADOW_BLUR_LOW : CONFIG.SHADOW_BLUR, () => {
+          ctx.fillStyle = d.color;
+          ctx.strokeStyle = "rgba(255,120,100,0.85)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(d.x, d.y, triR * 1.35 * wob, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(d.x, d.y - triR * wob);
+          ctx.lineTo(d.x + triR * 0.866 * wob, d.y + triR * 0.5 * wob);
+          ctx.lineTo(d.x - triR * 0.866 * wob, d.y + triR * 0.5 * wob);
+          ctx.closePath();
+          ctx.fill();
+        });
+        continue;
+      }
+      withNeon(d.color, state.qualityReduced ? CONFIG.SHADOW_BLUR_LOW : CONFIG.SHADOW_BLUR, () => {
+        ctx.fillStyle = d.color;
+        ctx.save();
+        ctx.translate(d.x, d.y);
+        ctx.rotate(nowSec * 0.8 + d.x * 0.002);
+        ctx.fillRect(-r, -r, r * 2, r * 2);
+        ctx.restore();
+      });
+    }
+  }
+
+  function drawActors(nowSec) {
+    const ranks = sortedRanks();
+    const leaderId = ranks.length ? ranks[0].id : null;
+    for (const a of state.actors) {
+      if (!a.joined) continue;
+      const rad = actorRadius(a);
+      const flash = nowSec <= a.hazardFlashUntil;
+      withNeon(flash ? "#ff4444" : a.color, state.qualityReduced ? CONFIG.SHADOW_BLUR_LOW : CONFIG.SHADOW_BLUR, () => {
+        ctx.fillStyle = flash ? "rgba(255,80,80,0.95)" : a.color;
+        ctx.beginPath();
+        ctx.arc(a.x, a.y, rad, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      if (a.id === leaderId) {
+        ctx.save();
+        ctx.fillStyle = "#ffd966";
+        ctx.font = `14px Arial`;
+        ctx.textAlign = "center";
+        ctx.fillText("\u2655", a.x, a.y - rad - 8);
+        ctx.restore();
       }
     }
+  }
 
-    function updateComboEffects(dt) {
-      for (let i = state.comboEffects.length - 1; i >= 0; i -= 1) {
-        const e = state.comboEffects[i];
-        e.life -= dt;
-        if (e.life <= 0) {
-          state.comboEffects.splice(i, 1);
-          continue;
-        }
-        e.scale = lerp(e.scale, 1.0, 0.12);
-      }
+  function drawParticles(nowMs) {
+    for (const p of state.particles) {
+      const alpha = clamp(p.life / p.maxLife, 0, 1);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = state.qualityReduced ? 6 : 12;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  function drawActorNames() {
+    const baseSize = Math.max(11, 12 * state.viewScale);
+    ctx.save();
+    ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    ctx.font = `700 ${baseSize}px Arial`;
+    for (const a of state.actors) {
+      if (!a.joined) continue;
+      const p = worldToCanvas(a.x, a.y);
+      const radScreen = actorRadius(a) * state.zoom * state.viewScale;
+      const y = p.y - radScreen - 8 * state.viewScale;
+      ctx.fillStyle = a.isPlayer ? "#ffe87e" : "#d7ebff";
+      ctx.shadowColor = "rgba(0,0,0,0.7)";
+      ctx.shadowBlur = 4;
+      ctx.fillText(a.name, p.x, y);
+    }
+    ctx.restore();
+  }
+
+  function drawHud() {
+    const viewW = canvas.width / state.dpr;
+    const rem = (CONFIG.SESSION_MS - state.elapsedMs) / 1000;
+    const t = Math.max(0, rem).toFixed(1);
+    ctx.save();
+    ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+    ctx.font = `700 ${28 * state.viewScale}px Arial`;
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#e8f8ff";
+    ctx.shadowColor = "rgba(100,220,255,0.6)";
+    ctx.shadowBlur = 12;
+    ctx.fillText(t, viewW / 2, 42 * state.viewScale);
+
+    const ranks = sortedRanks();
+    const rankScale = 1.2 * state.viewScale;
+    let y = 36 * state.viewScale;
+    ctx.textAlign = "right";
+    ctx.font = `${15 * rankScale}px Arial`;
+    ranks.forEach((a, i) => {
+      const label = `${i + 1}. ${a.name}  ${displayScore(a.score)}`;
+      ctx.fillStyle = a.isPlayer ? "#ffe87e" : "#d5eaff";
+      ctx.fillText(label, viewW - 18 * state.viewScale, y);
+      y += 22 * rankScale;
+    });
+    ctx.restore();
+  }
+
+  function drawComboFx(nowMs) {
+    const viewW = canvas.width / state.dpr;
+    for (const e of state.comboEffects) {
+      const alpha = clamp(e.life / e.maxLife, 0, 1);
+      const pop = Math.sin((1 - alpha) * Math.PI) * 0.12;
+      ctx.save();
+      ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+      ctx.globalAlpha = alpha;
+      ctx.translate(viewW / 2, CONFIG.COMBO_TEXT_SCREEN_Y * state.viewScale);
+      ctx.scale(e.scale + pop, e.scale + pop);
+      ctx.font = `800 ${e.fontSize * state.viewScale}px Arial`;
+      ctx.textAlign = "center";
+      ctx.fillStyle = e.color;
+      ctx.shadowColor = e.color;
+      ctx.shadowBlur = 16;
+      ctx.fillText(e.text, 0, 0);
+      ctx.restore();
+    }
+  }
+
+  function renderFrame(nowMs) {
+    const nowSec = state.running ? state.elapsedMs / 1000 : performance.now() / 1000;
+    const viewW = canvas.width / state.dpr;
+    const viewH = canvas.height / state.dpr;
+    ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+    ctx.fillStyle = CONFIG.LETTERBOX_COLOR;
+    ctx.fillRect(0, 0, viewW, viewH);
+
+    const gv = state.gameView;
+    ctx.save();
+    ctx.translate(gv.x, gv.y);
+    ctx.scale(state.viewScale, state.viewScale);
+
+    ctx.fillStyle = "#0b0b1a";
+    ctx.fillRect(0, 0, gv.width, gv.height);
+
+    ctx.save();
+    ctx.translate(gv.width / 2, gv.height / 2);
+    ctx.scale(state.zoom, state.zoom);
+    ctx.translate(-state.camX, -state.camY);
+
+    drawDots(nowSec);
+    drawParticles(nowMs);
+    drawActors(nowSec);
+
+    ctx.restore();
+
+    drawActorNames();
+
+    if (state.running || state.ended) {
+      drawHud();
+      drawComboFx(nowMs);
     }
 
-    function updateCamera() {
-      const player = state.actors[0];
-      const targetRaw = (1 / (1 + player.combo * CONFIG.ZOOM_COMBO_FACTOR)) * CONFIG.CAMERA_CLOSENESS_MULTIPLIER;
-      const targetZoom = clamp(targetRaw, CONFIG.ZOOM_MIN, CONFIG.ZOOM_MAX);
-      state.camera.zoom = lerp(state.camera.zoom, targetZoom, CONFIG.ZOOM_LERP_ALPHA);
-      state.camera.zoom = clamp(state.camera.zoom, CONFIG.ZOOM_MIN, CONFIG.ZOOM_MAX);
+    ctx.restore();
+  }
 
-      const effectiveZoom = state.camera.zoom * state.viewScale;
-      const halfW = state.gameView.width / (2 * effectiveZoom);
-      const halfH = state.gameView.height / (2 * effectiveZoom);
-      state.camera.x = halfW >= CONFIG.MAP_W * 0.5 ? CONFIG.MAP_W * 0.5 : clamp(player.x, halfW, CONFIG.MAP_W - halfW);
-      state.camera.y = halfH >= CONFIG.MAP_H * 0.5 ? CONFIG.MAP_H * 0.5 : clamp(player.y, halfH, CONFIG.MAP_H - halfH);
-    }
-
-    function updateQualityFallback(dt) {
-      state.fpsMonitor.timer += dt;
-      state.fpsMonitor.frames += 1;
-      if (state.fpsMonitor.timer >= 1) {
-        state.fpsMonitor.currentFps = state.fpsMonitor.frames / state.fpsMonitor.timer;
-        state.fpsMonitor.timer = 0;
-        state.fpsMonitor.frames = 0;
-        if (state.fpsMonitor.currentFps < 45) state.qualityReduced = true;
-      }
-    }
-
-    function updateJoinIntroEvents(nowSec) {
-      while (
-        state.joinNextEventIndex < state.joinEvents.length
-        && nowSec >= state.joinEvents[state.joinNextEventIndex].atSec
-      ) {
-        const ev = state.joinEvents[state.joinNextEventIndex];
-        const li = document.createElement("li");
-        li.textContent = ev.text;
-        joinFeed.appendChild(li);
-        const joinedActor = state.actors.find((a) => a.id === ev.actorId);
-        if (joinedActor) {
-          const from = randomOffscreenSpawnPoint();
-          joinedActor.joined = true;
-          joinedActor.joinAnimating = true;
-          joinedActor.joinAnimStartSec = nowSec;
-          joinedActor.joinFromX = from.x;
-          joinedActor.joinFromY = from.y;
-          joinedActor.x = from.x;
-          joinedActor.y = from.y;
-        }
-        joinSub.textContent = `${2 + state.joinNextEventIndex}/4 참가자 준비`;
-        state.joinNextEventIndex += 1;
-      }
-    }
-
-    function updateJoinAnimations(nowSec) {
-      for (const actor of state.actors) {
-        if (!actor.joinAnimating) continue;
-        const t = (nowSec - actor.joinAnimStartSec) / actor.joinAnimDurationSec;
-        if (t >= 1) {
-          actor.joinAnimating = false;
-          actor.x = actor.anchorX;
-          actor.y = actor.anchorY;
-          continue;
-        }
-        const e = easeOutCubic(t);
-        actor.x = lerp(actor.joinFromX, actor.anchorX, e);
-        actor.y = lerp(actor.joinFromY, actor.anchorY, e);
-      }
-    }
-
-    function updateJoinScene(nowMs) {
-      const dt = clamp((nowMs - state.lastFrameTimeMs) / 1000, 0, 0.05);
-      state.lastFrameTimeMs = nowMs;
-      state.joinElapsedMs += dt * 1000;
-      const nowSec = state.joinElapsedMs / 1000;
-      const progress = clamp(nowSec / CONFIG.JOIN_TOTAL_SEC, 0, 1);
-      joinBarFill.style.width = `${(progress * 100).toFixed(1)}%`;
-      joinTitle.textContent = "참가자 입장 중...";
-      joinFeed.style.display = "grid";
-      joinSub.style.display = "block";
-      joinStartFx.style.display = "none";
-      joinCountdown.style.display = "block";
-      const remainSec = Math.max(0, CONFIG.JOIN_TOTAL_SEC - nowSec);
-      joinCountdown.textContent = `게임 시작까지 ${remainSec.toFixed(1)}초`;
-      updateJoinIntroEvents(nowSec);
-      updateJoinAnimations(nowSec);
-      if (nowSec >= CONFIG.JOIN_TOTAL_SEC) {
-        state.joinSceneActive = false;
-        hideJoinPanel();
-        startGameStartScene(nowMs);
-      }
-    }
-
-    function updateGameStartScene(nowMs) {
-      const dt = clamp((nowMs - state.lastFrameTimeMs) / 1000, 0, 0.05);
-      state.lastFrameTimeMs = nowMs;
-      state.gameStartElapsedMs += dt * 1000;
-      const totalMs = CONFIG.GAME_START_FX_SEC * 1000;
-      const holdMs = 700;
-      const fadeSpanMs = Math.max(1, totalMs - holdMs);
-      let opacity = 1;
-      if (state.gameStartElapsedMs > holdMs) {
-        const fadeT = clamp((state.gameStartElapsedMs - holdMs) / fadeSpanMs, 0, 1);
-        opacity = 1 - fadeT;
-      }
-      const pulseT = clamp(state.gameStartElapsedMs / totalMs, 0, 1);
-      const scale = 1.08 - pulseT * 0.08;
-      gameStartCard.style.opacity = `${opacity.toFixed(3)}`;
-      gameStartCard.style.transform = `scale(${scale.toFixed(3)})`;
-      if (state.gameStartElapsedMs >= totalMs) {
-        state.gameStartElapsedMs = totalMs;
-        state.gameStartReady = true;
-      }
-    }
-
-    function endGame() {
-      if (state.ended) return;
-      state.ended = true;
-      state.running = false;
-      resetJoystick();
-      showResultPanel();
-    }
-
-    function updateGame(nowMs) {
+  function loop(nowMs) {
+    if (state.joinSceneActive) {
+      updateJoinScene(nowMs);
+    } else if (state.gameStartActive) {
+      updateGameStartScene(nowMs);
+      if (state.gameStartReady) beginGameplay(nowMs);
+    } else if (state.running && !state.ended) {
       const dt = clamp((nowMs - state.lastFrameTimeMs) / 1000, 0, 0.05);
       state.lastFrameTimeMs = nowMs;
       state.elapsedMs = nowMs - state.startTimeMs;
@@ -1260,335 +1318,175 @@
         state.elapsedMs = CONFIG.SESSION_MS;
         state.remainingMs = 0;
         endGame();
-        return;
-      }
-
-      updatePlayer(dt);
-      updateMovingDots(dt);
-      updateBots(dt);
-      updateCollections();
-      maintainDots(dt);
-      for (const actor of state.actors) {
-        updateComboChainTimeout(actor);
-        updateComboDecay(actor, dt);
-      }
-      updateParticles(dt);
-      updateComboEffects(dt);
-      updateCamera();
-      updateQualityFallback(dt);
-    }
-
-    // 7) Render
-    function withNeon(color, blur, drawFn) {
-      ctx.save();
-      ctx.globalCompositeOperation = "lighter";
-      ctx.shadowColor = color;
-      ctx.shadowBlur = blur;
-      ctx.fillStyle = color;
-      ctx.strokeStyle = color;
-      drawFn();
-      ctx.restore();
-    }
-
-    function drawBackgroundWorld() {
-      ctx.fillStyle = "#0b0b1a";
-      ctx.fillRect(0, 0, CONFIG.MAP_W, CONFIG.MAP_H);
-      ctx.save();
-      ctx.globalAlpha = 0.22;
-      ctx.strokeStyle = "#18213f";
-      ctx.lineWidth = 1;
-      const step = 80;
-      for (let x = 0; x <= CONFIG.MAP_W; x += step) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, CONFIG.MAP_H);
-        ctx.stroke();
-      }
-      for (let y = 0; y <= CONFIG.MAP_H; y += step) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(CONFIG.MAP_W, y);
-        ctx.stroke();
-      }
-      ctx.restore();
-    }
-
-    function drawDots() {
-      const blur = state.qualityReduced ? CONFIG.SHADOW_BLUR_LOW : CONFIG.SHADOW_BLUR;
-      for (const d of state.dots) {
-        if (d.type === "hazard") {
-          const t = state.elapsedMs / 1000;
-          const pulse = 1 + 0.12 * Math.sin(t * 10);
-          const r = d.radius * pulse;
-          withNeon("#ff4d4f", blur + 4, () => {
-            ctx.beginPath();
-            ctx.moveTo(d.x, d.y - r * 1.3);
-            ctx.lineTo(d.x - r * 1.12, d.y + r * 0.85);
-            ctx.lineTo(d.x + r * 1.12, d.y + r * 0.85);
-            ctx.closePath();
-            ctx.fill();
-          });
-          ctx.save();
-          ctx.globalAlpha = 0.5 + 0.25 * Math.sin(t * 7);
-          ctx.strokeStyle = "#ff9b66";
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          ctx.arc(d.x, d.y, r * 1.85, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.restore();
-          continue;
+      } else {
+        updatePlayer(dt);
+        updateMovingDots(dt);
+        updateBots(dt);
+        updateCollections();
+        maintainDots(dt);
+        for (const actor of state.actors) {
+          updateComboChainTimeout(actor);
+          updateComboDecay(actor, dt);
         }
-        withNeon(d.color, blur, () => {
-          const size = d.radius * 2;
-          ctx.beginPath();
-          ctx.rect(d.x - d.radius, d.y - d.radius, size, size);
-          ctx.fill();
-        });
+        updateParticles(dt);
+        updateComboEffects(dt);
+        updateCamera();
+        updateQualityFallback(dt);
       }
     }
-
-    function drawParticles() {
-      for (const p of state.particles) {
-        const alpha = clamp(p.life / p.maxLife, 0, 1);
-        withNeon(p.color, 10, () => {
-          ctx.globalAlpha = alpha;
-          ctx.fillRect(p.x - p.size * 0.5, p.y - p.size * 0.5, p.size, p.size);
-        });
-      }
-    }
-
-    function drawCrown(x, y, r) {
-      const topY = y - r - 34;
-      withNeon("#ffd76a", 18, () => {
-        ctx.beginPath();
-        ctx.moveTo(x - 12, topY + 8);
-        ctx.lineTo(x - 8, topY - 5);
-        ctx.lineTo(x - 1, topY + 4);
-        ctx.lineTo(x + 5, topY - 6);
-        ctx.lineTo(x + 11, topY + 8);
-        ctx.closePath();
-        ctx.fill();
-      });
-    }
-
-    function drawActors() {
-      if (state.actors.length === 0) return;
-      const blur = state.qualityReduced ? CONFIG.SHADOW_BLUR_LOW : CONFIG.SHADOW_BLUR;
-      const ranks = currentRanks();
-      const leaderId = ranks.length > 0 ? ranks[0].id : -1;
-      for (const a of state.actors) {
-        if (!a.joined) continue;
-        const r = actorRadius(a);
-        withNeon(a.color, blur, () => {
-          ctx.beginPath();
-          ctx.arc(a.x, a.y, r, 0, Math.PI * 2);
-          ctx.fill();
-        });
-        ctx.save();
-        ctx.fillStyle = "#d9ecff";
-        ctx.globalAlpha = 0.9;
-        ctx.font = "12px Arial";
-        ctx.textAlign = "center";
-        ctx.fillText(a.name, a.x, a.y - r - 10);
-        if (!a.isPlayer && (state.elapsedMs / 1000) <= a.joinBadgeUntilSec) {
-          ctx.font = "10px Arial";
-          ctx.fillStyle = "#8effd8";
-          ctx.fillText("JOINED", a.x, a.y - r - 23);
-        }
-        ctx.restore();
-        if ((state.elapsedMs / 1000) <= a.hazardFlashUntil) {
-          ctx.save();
-          ctx.globalAlpha = 0.35;
-          ctx.fillStyle = "#ff4d4f";
-          ctx.beginPath();
-          ctx.arc(a.x, a.y, r * 1.08, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
-        }
-        if (a.id === leaderId) drawCrown(a.x, a.y, r);
-      }
-    }
-
-    function drawJoystick() {
-      const j = state.joystick;
-      if (!j.active || state.ended) return;
-      const joystickMax = getJoystickMaxPx();
-      const knobRadius = 24 * state.viewScale;
-      ctx.save();
-      ctx.globalAlpha = 0.9;
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = "#7de2ff";
-      ctx.fillStyle = "rgba(90, 180, 255, 0.15)";
-      ctx.beginPath();
-      ctx.arc(j.baseX, j.baseY, joystickMax, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-      ctx.fillStyle = "rgba(130, 230, 255, 0.9)";
-      ctx.beginPath();
-      ctx.arc(j.knobX, j.knobY, knobRadius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    }
-
-    function drawComboEffects() {
-      const v = state.gameView;
-      const s = state.viewScale;
-      for (const e of state.comboEffects) {
-        const alpha = clamp(e.life / e.maxLife, 0, 1);
-        ctx.save();
-        ctx.globalAlpha = alpha;
-        ctx.textAlign = "center";
-        ctx.translate(v.x + v.width * 0.5, v.y + CONFIG.COMBO_TEXT_SCREEN_Y * s);
-        ctx.scale(e.scale, e.scale);
-        ctx.font = `bold ${e.fontSize * s}px Arial`;
-        withNeon(e.color, 14, () => ctx.fillText(e.text, 0, 0));
-        ctx.restore();
-      }
-    }
-
-    function drawHud() {
-      if (state.actors.length === 0) return;
-      const v = state.gameView;
-      const s = state.viewScale;
-      if (!state.running) return;
-      const ranks = currentRanks();
-      const timeSec = (state.remainingMs / 1000).toFixed(1);
-
-      ctx.save();
-      ctx.textAlign = "center";
-      ctx.font = `bold ${28 * s}px Arial`;
-      ctx.fillStyle = "#a7f1ff";
-      ctx.shadowColor = "#4fdfff";
-      ctx.shadowBlur = 14;
-      ctx.fillText(`${timeSec}s`, v.x + v.width * 0.5, v.y + 42 * s);
-      ctx.restore();
-
-      // Ranking panel: 20% larger
-      const panelW = 252 * s;
-      const panelH = 154 * s;
-      const panelX = v.x + v.width - panelW - 16 * s;
-      const panelY = v.y + 16 * s;
-      ctx.save();
-      ctx.fillStyle = "rgba(12, 18, 34, 0.72)";
-      ctx.fillRect(panelX, panelY, panelW, panelH);
-      ctx.strokeStyle = "rgba(120, 210, 255, 0.55)";
-      ctx.strokeRect(panelX, panelY, panelW, panelH);
-      ctx.fillStyle = "#9cecff";
-      ctx.font = `bold ${16.8 * s}px Arial`;
-      ctx.fillText("RANKING", panelX + 12 * s, panelY + 24 * s);
-      ctx.font = `${15.6 * s}px Arial`;
-      for (let i = 0; i < ranks.length; i += 1) {
-        const a = ranks[i];
-        const y = panelY + 52 * s + i * 24 * s;
-        ctx.fillStyle = a.isPlayer ? "#ffe87e" : "#d5eaff";
-        ctx.fillText(`${i + 1}. ${a.name}`, panelX + 12 * s, y);
-        ctx.textAlign = "right";
-        ctx.fillText(`${Math.floor(a.score)}`, panelX + panelW - 10 * s, y);
-        ctx.textAlign = "left";
-      }
-      ctx.restore();
-    }
-
-    function render() {
-      ctx.clearRect(0, 0, state.width, state.height);
-      ctx.fillStyle = CONFIG.LETTERBOX_COLOR;
-      ctx.fillRect(0, 0, state.width, state.height);
-
-      const v = state.gameView;
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(v.x, v.y, v.width, v.height);
-      ctx.clip();
-      ctx.translate(v.x + v.width * 0.5, v.y + v.height * 0.5);
-      const totalScale = state.camera.zoom * state.viewScale;
-      ctx.scale(totalScale, totalScale);
-      ctx.translate(-state.camera.x, -state.camera.y);
-      drawBackgroundWorld();
-      drawDots();
-      drawParticles();
-      drawActors();
-      ctx.restore();
-
-      drawHud();
-      drawComboEffects();
-      drawJoystick();
-    }
-
-    // 8) UI flow
-    function showStartPanel() { startPanel.style.display = "flex"; }
-    function hideStartPanel() { startPanel.style.display = "none"; }
-    function showJoinPanel() { joinPanel.style.display = "flex"; }
-    function hideJoinPanel() { joinPanel.style.display = "none"; }
-    function showGameStartPanel() { gameStartPanel.style.display = "flex"; }
-    function hideGameStartPanel() { gameStartPanel.style.display = "none"; }
-    function hideResultPanel() { resultPanel.style.display = "none"; }
-
-    function showResultPanel() {
-      const ranks = currentRanks();
-      resultList.innerHTML = "";
-      for (let i = 0; i < ranks.length; i += 1) {
-        const a = ranks[i];
-        const li = document.createElement("li");
-        if (a.isPlayer) li.className = "you";
-        const left = document.createElement("span");
-        left.textContent = `${i + 1}. ${a.name}`;
-        const right = document.createElement("span");
-        right.textContent = `${Math.floor(a.score)}`;
-        li.append(left, right);
-        resultList.appendChild(li);
-      }
-      resultPanel.style.display = "flex";
-    }
-
-    // 9) Boot / loop
-    function resizeCanvas() {
-      state.width = window.innerWidth;
-      state.height = window.innerHeight;
-      canvas.width = state.width;
-      canvas.height = state.height;
-      state.gameView = computeGameView(state.width, state.height);
-      state.viewScale = Math.min(1, state.gameView.width / CONFIG.REFERENCE_VIEW_WIDTH);
-      updateOverlayLayout();
-    }
-
-    function loop(nowMs) {
-      if (state.joinSceneActive) updateJoinScene(nowMs);
-      else if (state.gameStartSceneActive) updateGameStartScene(nowMs);
-      else if (state.running) updateGame(nowMs);
-      render();
-      if (state.gameStartSceneActive && state.gameStartReady) beginGameplay(nowMs);
-      requestAnimationFrame(loop);
-    }
-
-    window.addEventListener("resize", resizeCanvas);
-    document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) state.lastFrameTimeMs = performance.now();
-    });
-
-    fullscreenBtn.addEventListener("click", async () => {
-      await toggleFullscreenBestEffort();
-      updateFullscreenButtonLabel();
-    });
-    startBtn.addEventListener("click", () => {
-      hideStartPanel();
-      startJoinScene();
-    });
-    restartBtn.addEventListener("click", () => {
-      startJoinScene();
-    });
-    document.addEventListener("fullscreenchange", updateFullscreenButtonLabel);
-    document.addEventListener("webkitfullscreenchange", updateFullscreenButtonLabel);
-    document.addEventListener("msfullscreenchange", updateFullscreenButtonLabel);
-
-    // pre-start safe render init
-    resizeCanvas();
-    state.actors = [];
-    fillInitialDots();
-    hideJoinPanel();
-    hideGameStartPanel();
-    updateFullscreenButtonLabel();
-    showStartPanel();
+    renderFrame(nowMs);
     requestAnimationFrame(loop);
+  }
+
+  function resize() {
+    state.dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    canvas.width = Math.floor(w * state.dpr);
+    canvas.height = Math.floor(h * state.dpr);
+    const aspect = CONFIG.FIXED_VIEW_ASPECT;
+    let gw = w;
+    let gh = w / aspect;
+    if (gh > h) {
+      gh = h;
+      gw = h * aspect;
+    }
+    state.gameView.width = CONFIG.REFERENCE_VIEW_WIDTH;
+    state.gameView.height = CONFIG.REFERENCE_VIEW_WIDTH / aspect;
+    state.viewScale = gw / CONFIG.REFERENCE_VIEW_WIDTH;
+    state.gameView.x = (w - gw) / 2;
+    state.gameView.y = (h - gh) / 2;
+    layoutUiScale();
+  }
+
+  function layoutUiScale() {
+    const s = state.viewScale;
+    startCard.style.transform = `scale(${s})`;
+    resultCard.style.transform = `scale(${s})`;
+    joinCard.style.transform = `scale(${s})`;
+    gameStartCard.style.transform = `scale(${s})`;
+  }
+
+  function isIOSLikeDevice() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  }
+
+  function fullscreenRequestFn(el) {
+    if (el.requestFullscreen) return el.requestFullscreen.bind(el);
+    if (el.webkitRequestFullscreen) return el.webkitRequestFullscreen.bind(el);
+    if (el.msRequestFullscreen) return el.msRequestFullscreen.bind(el);
+    return null;
+  }
+
+  function fullscreenExitFn() {
+    if (document.exitFullscreen) return document.exitFullscreen.bind(document);
+    if (document.webkitExitFullscreen) return document.webkitExitFullscreen.bind(document);
+    if (document.msExitFullscreen) return document.msExitFullscreen.bind(document);
+    return null;
+  }
+
+  function isFullscreenActive() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+  }
+
+  function updateFullscreenButtonLabel() {
+    if (isFullscreenActive()) fullscreenBtn.textContent = "창화면으로 보기";
+    else fullscreenBtn.textContent = "전체화면으로 보기";
+    if (isIOSLikeDevice() && !window.navigator.standalone) {
+      fsHint.textContent = "iOS Safari는 전체화면 API가 제한됩니다. 공유 → 홈 화면에 추가 후 실행해 보세요.";
+    } else {
+      fsHint.textContent = "";
+    }
+  }
+
+  function toggleFullscreenBestEffort() {
+    const fn = isFullscreenActive() ? fullscreenExitFn() : fullscreenRequestFn(document.documentElement);
+    if (!fn) {
+      updateFullscreenButtonLabel();
+      return;
+    }
+    Promise.resolve(fn()).catch(() => {}).finally(updateFullscreenButtonLabel);
+  }
+
+  function resetJoystick() {
+    state.pointerDown = false;
+    state.pointerId = null;
+    state.joyDx = 0;
+    state.joyDy = 0;
+  }
+
+  function onKeyDown(e) {
+    state.keys[e.key] = true;
+  }
+  function onKeyUp(e) {
+    state.keys[e.key] = false;
+  }
+
+  function onJoyDown(e) {
+    if (!state.running) return;
+    if (state.pointerDown) return;
+    state.pointerDown = true;
+    state.pointerId = e.pointerId;
+    state.joyCx = e.clientX;
+    state.joyCy = e.clientY;
+    state.joyDx = 0;
+    state.joyDy = 0;
+    try { e.target.setPointerCapture(e.pointerId); } catch (_) {}
+  }
+  function onJoyMove(e) {
+    if (!state.pointerDown || e.pointerId !== state.pointerId) return;
+    const dx = e.clientX - state.joyCx;
+    const dy = e.clientY - state.joyCy;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    const max = CONFIG.JOYSTICK_MAX;
+    if (len <= max) {
+      state.joyDx = dx;
+      state.joyDy = dy;
+    } else {
+      state.joyDx = (dx / len) * max;
+      state.joyDy = (dy / len) * max;
+    }
+  }
+  function onJoyUp(e) {
+    if (e.pointerId !== state.pointerId) return;
+    resetJoystick();
+    try { e.target.releasePointerCapture(e.pointerId); } catch (_) {}
+  }
+
+  function boot() {
+    buildActorsForRound();
+    for (const a of state.actors) {
+      a.joined = true;
+    }
+    state.camX = CONFIG.MAP_W / 2;
+    state.camY = CONFIG.MAP_H / 2;
+    state.zoom = 3;
+    state.targetZoom = 3;
+    startPanel.style.display = "flex";
+    updateFullscreenButtonLabel();
+    window.addEventListener("resize", resize);
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("fullscreenchange", updateFullscreenButtonLabel);
+    window.addEventListener("webkitfullscreenchange", updateFullscreenButtonLabel);
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) resetJoystick();
+    });
+    joystickEl.addEventListener("pointerdown", onJoyDown);
+    joystickEl.addEventListener("pointermove", onJoyMove);
+    joystickEl.addEventListener("pointerup", onJoyUp);
+    joystickEl.addEventListener("pointercancel", onJoyUp);
+    startBtn.addEventListener("click", () => { startJoinScene(); });
+    restartBtn.addEventListener("click", () => { startJoinScene(); });
+    fullscreenBtn.addEventListener("click", (e) => { e.stopPropagation(); toggleFullscreenBestEffort(); });
+    resize();
+    state.lastFrameTimeMs = performance.now();
+    requestAnimationFrame(loop);
+  }
+
+  boot();
+})();
   </script>
 </body>
 </html>
