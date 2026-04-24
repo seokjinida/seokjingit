@@ -22,7 +22,7 @@
       touch-action: none;
       cursor: crosshair;
     }
-    #startPanel, #resultPanel {
+    #startPanel, #joinPanel, #gameStartPanel, #resultPanel {
       position: fixed;
       display: none;
       align-items: center;
@@ -41,7 +41,27 @@
       transform-origin: center center;
     }
     #resultCard { width: min(460px, 90%); }
-    #startTitle, #resultTitle {
+    #gameStartCard {
+      width: min(420px, 84%);
+      text-align: center;
+      color: #b7f3ff;
+      font-size: 52px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-shadow: 0 0 18px rgba(107, 232, 255, 0.9);
+      transform-origin: center center;
+      opacity: 1;
+    }
+    #joinCard {
+      width: min(520px, 92%);
+      background: rgba(12, 17, 30, 0.96);
+      border: 1px solid rgba(140, 232, 255, 0.56);
+      border-radius: 14px;
+      box-shadow: 0 0 28px rgba(90, 210, 255, 0.25);
+      padding: 22px;
+      transform-origin: center center;
+    }
+    #startTitle, #resultTitle, #joinTitle {
       margin: 0;
       text-align: center;
       color: #7fe5ff;
@@ -51,6 +71,62 @@
       text-align: center;
       color: #c8edff;
       font-size: 14px;
+    }
+    #joinSub {
+      margin: 8px 0 12px;
+      text-align: center;
+      color: #c8edff;
+      font-size: 14px;
+    }
+    #joinFeed {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 6px;
+      min-height: 100px;
+      color: #d8ecff;
+      font-size: 14px;
+      line-height: 1.35;
+    }
+    #joinFeed li {
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(120, 210, 255, 0.25);
+    }
+    #joinCountdown {
+      margin: 10px 0 8px;
+      text-align: center;
+      color: #9cecff;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    #joinStartFx {
+      margin: 8px 0 6px;
+      text-align: center;
+      color: #9cecff;
+      font-size: 30px;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+      text-shadow: 0 0 18px rgba(124, 234, 255, 0.8);
+      transform-origin: center center;
+      opacity: 0;
+    }
+    #joinBar {
+      width: 100%;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(120, 210, 255, 0.3);
+      overflow: hidden;
+    }
+    #joinBarFill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #68e8ff, #9cffb7);
+      box-shadow: 0 0 12px rgba(104, 232, 255, 0.55);
+      transition: width 0.08s linear;
     }
     #guideList {
       margin: 0 0 14px;
@@ -92,6 +168,34 @@
       background: linear-gradient(180deg, #91f6ff, #43cbff);
       cursor: pointer;
     }
+    button.secondary {
+      color: #bfefff;
+      border: 1px solid rgba(120, 210, 255, 0.6);
+      background: rgba(30, 62, 92, 0.78);
+    }
+    #fullscreenBtn {
+      position: absolute;
+      left: 50%;
+      top: calc(50% + 165px);
+      transform: translateX(-50%);
+      width: min(240px, 46%);
+      padding: 10px 12px;
+      font-size: 14px;
+      z-index: 12;
+    }
+    #fsHint {
+      position: absolute;
+      left: 50%;
+      top: calc(50% + 212px);
+      transform: translateX(-50%);
+      width: min(320px, 74%);
+      margin: 0;
+      text-align: center;
+      color: #9fdcff;
+      font-size: 12px;
+      line-height: 1.35;
+      z-index: 12;
+    }
     button:active { transform: translateY(1px); }
   </style>
 </head>
@@ -101,13 +205,15 @@
   <div id="startPanel">
     <div id="startCard">
       <h1 id="startTitle">네온 팝 스위퍼</h1>
-      <p id="startSub">70초 동안 AI 3명과 경쟁</p>
+      <p id="startSub">70초 동안 최고 점수에 도전</p>
       <ul id="guideList">
         <li>화면 드래그 조이스틱 또는 WASD/방향키로 이동합니다.</li>
         <li>네온 닷을 수집하면 점수/콤보가 오르고 캐릭터가 커집니다.</li>
         <li>70초 종료 시 최종 랭킹이 결정됩니다.</li>
       </ul>
+      <button id="fullscreenBtn" class="secondary" type="button">전체화면으로 보기</button>
       <button id="startBtn" type="button">게임 시작</button>
+      <p id="fsHint"></p>
     </div>
   </div>
 
@@ -116,6 +222,21 @@
       <h2 id="resultTitle">최종 순위</h2>
       <ul id="resultList"></ul>
       <button id="restartBtn" type="button">Restart</button>
+    </div>
+  </div>
+
+  <div id="gameStartPanel">
+    <div id="gameStartCard">게임 시작!</div>
+  </div>
+
+  <div id="joinPanel">
+    <div id="joinCard">
+      <h2 id="joinTitle">참가자 입장 중...</h2>
+      <p id="joinSub">1/4 참가자 준비</p>
+      <ul id="joinFeed"></ul>
+      <div id="joinStartFx">게임 시작</div>
+      <p id="joinCountdown">곧 시작합니다...</p>
+      <div id="joinBar"><div id="joinBarFill"></div></div>
     </div>
   </div>
 
@@ -138,6 +259,17 @@
       SPAWN_INTERVAL: 0.25,
       SPAWN_SAFE_RADIUS: 120,
       BOT_RETARGET_INTERVAL: 0.4,
+      CHASER_SPEED_MIN: 78,
+      CHASER_SPEED_MAX: 104,
+      CHASER_LIFETIME_MIN: 6.0,
+      CHASER_LIFETIME_MAX: 8.0,
+      HAZARD_PENALTY_RATE: 0.05,
+      HAZARD_FLASH_SEC: 0.45,
+      HAZARD_SCATTER_MIN_DOTS: 3,
+      HAZARD_SCATTER_MAX_DOTS: 18,
+      HAZARD_SCATTER_LAUNCH_SPEED_MIN: 420,
+      HAZARD_SCATTER_LAUNCH_SPEED_MAX: 680,
+      HAZARD_SCATTER_LAUNCH_SEC: 1.15,
       COMBO_DECAY_DELAY: 1.2,
       COMBO_DECAY_PER_SEC: 5,
       FEVER_SECONDS: 2.5,
@@ -157,28 +289,51 @@
       COMBO_CHAIN_WINDOW_SEC: 0.6,
       COMBO_TEXT_SCREEN_Y: 170,
       FIXED_VIEW_ASPECT: 16 / 9,
-      REFERENCE_VIEW_WIDTH: 1600
+      REFERENCE_VIEW_WIDTH: 1600,
+      JOIN_TOTAL_SEC: 5.0,
+      JOIN_EVENT_MIN_SEC: 0.4,
+      JOIN_EVENT_MAX_SEC: 4.4,
+      JOIN_BADGE_GAME_SEC: 1.5,
+      GAME_START_FX_SEC: 1.8
     };
 
     const DOT_TYPES = [
-      { key: "normal", chance: 0.85, baseScore: 10, comboGain: 1, color: "#54e7ff", radius: 5 },
+      { key: "normal", chance: 0.81, baseScore: 10, comboGain: 1, color: "#54e7ff", radius: 5 },
       { key: "bonus", chance: 0.12, baseScore: 25, comboGain: 2, color: "#7dff8e", radius: 6 },
-      { key: "fever", chance: 0.03, baseScore: 40, comboGain: 4, color: "#ff58d3", radius: 7 }
+      { key: "fever", chance: 0.03, baseScore: 40, comboGain: 4, color: "#ff58d3", radius: 7 },
+      { key: "chaser", chance: 0.02, baseScore: 55, comboGain: 5, color: "#b06bff", radius: 7 },
+      { key: "hazard", chance: 0.02, baseScore: 0, comboGain: 0, color: "#ff4d4f", radius: 7 }
     ];
 
     const ACTOR_COLORS = ["#4fdfff", "#ff7ad7", "#a6ff68", "#ffb45c"];
-    const ACTOR_NAMES = ["YOU", "BOT-A", "BOT-B", "BOT-C"];
+    const PLAYER_NAME = "YOU";
+    const BOT_NAME_POOL = [
+      "NeoFox", "MintBug", "RinRin", "JAY_92", "BlueM", "Kite",
+      "Dodo9", "Momo", "PixelJay", "Haru", "Nabi_", "Lime77"
+    ];
 
     // 2) State
     const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
     const startPanel = document.getElementById("startPanel");
     const startCard = document.getElementById("startCard");
+    const fullscreenBtn = document.getElementById("fullscreenBtn");
     const startBtn = document.getElementById("startBtn");
+    const fsHint = document.getElementById("fsHint");
     const resultPanel = document.getElementById("resultPanel");
     const resultCard = document.getElementById("resultCard");
     const resultList = document.getElementById("resultList");
     const restartBtn = document.getElementById("restartBtn");
+    const joinPanel = document.getElementById("joinPanel");
+    const joinCard = document.getElementById("joinCard");
+    const joinTitle = document.getElementById("joinTitle");
+    const joinSub = document.getElementById("joinSub");
+    const joinFeed = document.getElementById("joinFeed");
+    const joinStartFx = document.getElementById("joinStartFx");
+    const joinCountdown = document.getElementById("joinCountdown");
+    const joinBarFill = document.getElementById("joinBarFill");
+    const gameStartPanel = document.getElementById("gameStartPanel");
+    const gameStartCard = document.getElementById("gameStartCard");
 
     const state = {
       width: 0,
@@ -200,13 +355,34 @@
       joystick: { active: false, pointerId: null, baseX: 0, baseY: 0, knobX: 0, knobY: 0, dirX: 0, dirY: 0, power: 0 },
       keyboard: { up: false, down: false, left: false, right: false },
       qualityReduced: false,
-      fpsMonitor: { timer: 0, frames: 0, currentFps: 60 }
+      fpsMonitor: { timer: 0, frames: 0, currentFps: 60 },
+      joinSceneActive: false,
+      joinSceneStartMs: 0,
+      joinElapsedMs: 0,
+      joinEvents: [],
+      joinNextEventIndex: 0,
+      gameStartSceneActive: false,
+      gameStartElapsedMs: 0,
+      gameStartReady: false
     };
 
     // 3) Utility
     const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
     const lerp = (a, b, t) => a + (b - a) * t;
     const randRange = (a, b) => a + Math.random() * (b - a);
+
+    function randomOffscreenSpawnPoint() {
+      const side = Math.floor(Math.random() * 4);
+      if (side === 0) return { x: -180, y: randRange(120, CONFIG.MAP_H - 120) };
+      if (side === 1) return { x: CONFIG.MAP_W + 180, y: randRange(120, CONFIG.MAP_H - 120) };
+      if (side === 2) return { x: randRange(120, CONFIG.MAP_W - 120), y: -180 };
+      return { x: randRange(120, CONFIG.MAP_W - 120), y: CONFIG.MAP_H + 180 };
+    }
+
+    function easeOutCubic(t) {
+      const u = 1 - clamp(t, 0, 1);
+      return 1 - u * u * u;
+    }
 
     function distSq(ax, ay, bx, by) {
       const dx = ax - bx;
@@ -289,13 +465,15 @@
     function updateOverlayLayout() {
       const v = state.gameView;
       const overlayScale = clamp(state.viewScale, 0.6, 1);
-      for (const panel of [startPanel, resultPanel]) {
+      for (const panel of [startPanel, joinPanel, gameStartPanel, resultPanel]) {
         panel.style.left = `${v.x}px`;
         panel.style.top = `${v.y}px`;
         panel.style.width = `${v.width}px`;
         panel.style.height = `${v.height}px`;
       }
       startCard.style.transform = `scale(${overlayScale})`;
+      joinCard.style.transform = `scale(${overlayScale})`;
+      gameStartCard.style.transform = `scale(${overlayScale})`;
       resultCard.style.transform = `scale(${overlayScale})`;
     }
 
@@ -305,17 +483,68 @@
         id, x, y, color, name, isPlayer,
         vx: 0, vy: 0, score: 0, combo: 0,
         lastCollectSec: 0, comboChainCount: 0, feverUntil: 0,
-        scoreReachedAt: 0, targetDotId: null, retargetTimer: 0
+        hazardFlashUntil: 0,
+        scoreReachedAt: 0, targetDotId: null, retargetTimer: 0,
+        joinBadgeUntilSec: -1,
+        joined: isPlayer,
+        anchorX: x,
+        anchorY: y,
+        joinFromX: x,
+        joinFromY: y,
+        joinAnimating: false,
+        joinAnimStartSec: -1,
+        joinAnimDurationSec: 0.65
       };
     }
 
+    function pickBotNames(count) {
+      const pool = [...BOT_NAME_POOL];
+      for (let i = pool.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = pool[i];
+        pool[i] = pool[j];
+        pool[j] = tmp;
+      }
+      return pool.slice(0, count);
+    }
+
     function initActors() {
+      const botNames = pickBotNames(3);
       state.actors = [
-        createActor(0, CONFIG.MAP_W * 0.5, CONFIG.MAP_H * 0.5, ACTOR_COLORS[0], ACTOR_NAMES[0], true),
-        createActor(1, CONFIG.MAP_W * 0.45, CONFIG.MAP_H * 0.45, ACTOR_COLORS[1], ACTOR_NAMES[1], false),
-        createActor(2, CONFIG.MAP_W * 0.55, CONFIG.MAP_H * 0.45, ACTOR_COLORS[2], ACTOR_NAMES[2], false),
-        createActor(3, CONFIG.MAP_W * 0.50, CONFIG.MAP_H * 0.58, ACTOR_COLORS[3], ACTOR_NAMES[3], false)
+        createActor(0, CONFIG.MAP_W * 0.5, CONFIG.MAP_H * 0.5, ACTOR_COLORS[0], PLAYER_NAME, true),
+        createActor(1, CONFIG.MAP_W * 0.45, CONFIG.MAP_H * 0.45, ACTOR_COLORS[1], botNames[0], false),
+        createActor(2, CONFIG.MAP_W * 0.55, CONFIG.MAP_H * 0.45, ACTOR_COLORS[2], botNames[1], false),
+        createActor(3, CONFIG.MAP_W * 0.50, CONFIG.MAP_H * 0.58, ACTOR_COLORS[3], botNames[2], false)
       ];
+    }
+
+    function scheduleJoinIntro() {
+      state.joinElapsedMs = 0;
+      state.joinEvents.length = 0;
+      state.joinNextEventIndex = 0;
+      joinTitle.textContent = "참가자 입장 중...";
+      joinFeed.innerHTML = "";
+      joinFeed.style.display = "grid";
+      joinSub.textContent = "1/4 참가자 준비";
+      joinSub.style.display = "block";
+      joinStartFx.style.display = "none";
+      joinCountdown.textContent = `게임 시작까지 ${CONFIG.JOIN_TOTAL_SEC.toFixed(1)}초`;
+      joinCountdown.style.display = "block";
+      joinBarFill.style.width = "0%";
+      const joinTimes = [];
+      const maxJoinSec = Math.min(CONFIG.JOIN_EVENT_MAX_SEC, CONFIG.JOIN_TOTAL_SEC - 0.2);
+      for (const actor of state.actors) {
+        if (actor.isPlayer) continue;
+        actor.joined = false;
+        actor.joinAnimating = false;
+        actor.joinAnimStartSec = -1;
+        actor.x = actor.anchorX;
+        actor.y = actor.anchorY;
+        const atSec = randRange(CONFIG.JOIN_EVENT_MIN_SEC, maxJoinSec);
+        joinTimes.push({ atSec, actorId: actor.id, text: `${actor.name} 님이 합류했습니다` });
+      }
+      joinTimes.sort((a, b) => a.atSec - b.atSec);
+      state.joinEvents.push(...joinTimes);
     }
 
     function spawnOneDot() {
@@ -331,9 +560,24 @@
         }
         if (!valid) continue;
         const t = chooseDotType();
+        let vx = 0;
+        let vy = 0;
+        let ttlSec = -1;
+        if (t.key === "chaser") {
+          const ang = Math.random() * Math.PI * 2;
+          const spd = randRange(CONFIG.CHASER_SPEED_MIN, CONFIG.CHASER_SPEED_MAX);
+          vx = Math.cos(ang) * spd;
+          vy = Math.sin(ang) * spd;
+          ttlSec = randRange(CONFIG.CHASER_LIFETIME_MIN, CONFIG.CHASER_LIFETIME_MAX);
+        }
         state.dots.push({
           id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random()}`,
-          x, y, type: t.key, baseScore: t.baseScore, comboGain: t.comboGain, color: t.color, radius: t.radius
+          x, y, type: t.key, baseScore: t.baseScore, comboGain: t.comboGain, color: t.color, radius: t.radius,
+          vx, vy, ttlSec,
+          launchVx: 0,
+          launchVy: 0,
+          launchSec: 0,
+          noCollectUntilSec: 0
         });
         return;
       }
@@ -352,7 +596,7 @@
       state.joystick.power = 0;
     }
 
-    function resetGame() {
+    function prepareRoundState() {
       initActors();
       fillInitialDots();
       state.particles.length = 0;
@@ -366,13 +610,50 @@
       state.camera.x = CONFIG.MAP_W * 0.5;
       state.camera.y = CONFIG.MAP_H * 0.5;
       resetJoystick();
-      state.running = true;
+      state.running = false;
       state.ended = false;
-      state.startTimeMs = performance.now();
-      state.lastFrameTimeMs = state.startTimeMs;
+      state.startTimeMs = 0;
+      state.lastFrameTimeMs = performance.now();
       state.elapsedMs = 0;
       state.remainingMs = CONFIG.SESSION_MS;
       hideResultPanel();
+    }
+
+    function startJoinScene() {
+      prepareRoundState();
+      scheduleJoinIntro();
+      state.joinSceneActive = true;
+      state.gameStartSceneActive = false;
+      state.joinSceneStartMs = performance.now();
+      state.lastFrameTimeMs = state.joinSceneStartMs;
+      showJoinPanel();
+    }
+
+    function startGameStartScene(nowMs) {
+      state.gameStartSceneActive = true;
+      state.gameStartElapsedMs = 0;
+      state.gameStartReady = false;
+      state.lastFrameTimeMs = nowMs;
+      gameStartCard.style.opacity = "1";
+      gameStartCard.style.transform = "scale(1)";
+      showGameStartPanel();
+    }
+
+    function beginGameplay(nowMs) {
+      state.gameStartSceneActive = false;
+      hideGameStartPanel();
+      state.running = true;
+      state.startTimeMs = nowMs;
+      state.lastFrameTimeMs = nowMs;
+      state.elapsedMs = 0;
+      state.remainingMs = CONFIG.SESSION_MS;
+      for (const actor of state.actors) {
+        actor.joined = true;
+        actor.joinAnimating = false;
+        actor.x = actor.anchorX;
+        actor.y = actor.anchorY;
+        if (!actor.isPlayer) actor.joinBadgeUntilSec = CONFIG.JOIN_BADGE_GAME_SEC;
+      }
     }
 
     // 5) Input
@@ -460,6 +741,79 @@
       return { x: x / mag, y: y / mag, power: 1 };
     }
 
+    // Fullscreen
+    function isIOSLikeDevice() {
+      const ua = navigator.userAgent || "";
+      return /iPad|iPhone|iPod/.test(ua)
+        || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    }
+
+    function fullscreenRequestFn() {
+      const el = document.documentElement;
+      return el.requestFullscreen
+        || el.webkitRequestFullscreen
+        || el.msRequestFullscreen
+        || null;
+    }
+
+    function fullscreenExitFn() {
+      return document.exitFullscreen
+        || document.webkitExitFullscreen
+        || document.msExitFullscreen
+        || null;
+    }
+
+    function isFullscreenActive() {
+      return Boolean(
+        document.fullscreenElement
+        || document.webkitFullscreenElement
+        || document.msFullscreenElement
+      );
+    }
+
+    function updateFullscreenButtonLabel() {
+      fullscreenBtn.textContent = isFullscreenActive() ? "창화면으로 보기" : "전체화면으로 보기";
+    }
+
+    async function requestFullscreenBestEffort() {
+      const fn = fullscreenRequestFn();
+      if (!fn) {
+        fsHint.textContent = isIOSLikeDevice()
+          ? "iOS는 공유 > 홈 화면에 추가로 실행하면 더 크게 플레이할 수 있습니다."
+          : "이 브라우저는 전체화면 API를 지원하지 않습니다.";
+        return false;
+      }
+      try {
+        const ret = fn.call(document.documentElement);
+        if (ret && typeof ret.then === "function") await ret;
+        fsHint.textContent = "";
+        return true;
+      } catch (err) {
+        fsHint.textContent = "전체화면 전환에 실패했습니다. 브라우저 메뉴에서 전체화면을 시도해 주세요.";
+        return false;
+      }
+    }
+
+    async function toggleFullscreenBestEffort() {
+      if (isFullscreenActive()) {
+        const exitFn = fullscreenExitFn();
+        if (!exitFn) {
+          fsHint.textContent = "이 브라우저는 창화면 전환 API를 지원하지 않습니다.";
+          return false;
+        }
+        try {
+          const ret = exitFn.call(document);
+          if (ret && typeof ret.then === "function") await ret;
+          fsHint.textContent = "";
+          return true;
+        } catch (err) {
+          fsHint.textContent = "창화면 전환에 실패했습니다.";
+          return false;
+        }
+      }
+      return requestFullscreenBestEffort();
+    }
+
     // 6) Game update
     function updatePlayer(dt) {
       const player = state.actors[0];
@@ -525,21 +879,48 @@
 
     function emitCollectionParticles(dot) {
       const qualityMul = state.qualityReduced ? 0.7 : 1.0;
-      const baseCount = dot.type === "fever" ? 20 : dot.type === "bonus" ? 12 : 8;
-      const count = Math.floor(baseCount * qualityMul);
+      const tier = {
+        normal: { count: 8, speedMin: 100, speedMax: 420, lifeMin: 0.35, lifeMax: 0.6, sizeMin: 2, sizeMax: 6, colors: [dot.color, "#9fefff"] },
+        bonus: { count: 12, speedMin: 140, speedMax: 500, lifeMin: 0.42, lifeMax: 0.72, sizeMin: 2.5, sizeMax: 7.5, colors: [dot.color, "#c9ff9a", "#7dff8e"] },
+        fever: { count: 18, speedMin: 180, speedMax: 600, lifeMin: 0.48, lifeMax: 0.82, sizeMin: 3, sizeMax: 9.5, colors: [dot.color, "#ff8ee2", "#ffd0ff"] },
+        chaser: { count: 16, speedMin: 170, speedMax: 580, lifeMin: 0.45, lifeMax: 0.8, sizeMin: 2.8, sizeMax: 8.8, colors: [dot.color, "#d4a8ff", "#f0dcff"] },
+        hazard: { count: 14, speedMin: 150, speedMax: 540, lifeMin: 0.4, lifeMax: 0.75, sizeMin: 2.6, sizeMax: 8.2, colors: [dot.color, "#ff9b66", "#ffd2b8"] }
+      }[dot.type] || { count: 8, speedMin: 100, speedMax: 420, lifeMin: 0.35, lifeMax: 0.6, sizeMin: 2, sizeMax: 6, colors: [dot.color] };
+
+      // Requested: overall impact around 2x larger.
+      const count = Math.floor(tier.count * qualityMul * 2.0);
+      const bigCount = Math.max(1, Math.floor(count * 0.28));
+
       for (let i = 0; i < count; i += 1) {
         if (state.particles.length >= CONFIG.PARTICLE_CAP) break;
         const angle = Math.random() * Math.PI * 2;
-        const speed = randRange(35, 210);
-        const life = randRange(0.35, 0.6);
+        const speed = randRange(tier.speedMin, tier.speedMax);
+        const life = randRange(tier.lifeMin, tier.lifeMax);
         state.particles.push({
           x: dot.x,
           y: dot.y,
           vx: Math.cos(angle) * speed,
           vy: Math.sin(angle) * speed,
           life, maxLife: life,
-          size: randRange(2, 6),
-          color: dot.color
+          size: randRange(tier.sizeMin, tier.sizeMax) * 1.2,
+          color: tier.colors[Math.floor(Math.random() * tier.colors.length)]
+        });
+      }
+
+      // Add a few large shards so higher tiers feel flashier.
+      for (let i = 0; i < bigCount; i += 1) {
+        if (state.particles.length >= CONFIG.PARTICLE_CAP) break;
+        const angle = Math.random() * Math.PI * 2;
+        const speed = randRange(tier.speedMin * 1.1, tier.speedMax * 1.35);
+        const life = randRange(tier.lifeMin * 0.9, tier.lifeMax * 1.1);
+        state.particles.push({
+          x: dot.x,
+          y: dot.y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life, maxLife: life,
+          size: randRange(tier.sizeMax * 0.95, tier.sizeMax * 1.5),
+          color: tier.colors[Math.floor(Math.random() * tier.colors.length)]
         });
       }
     }
@@ -558,8 +939,72 @@
       });
     }
 
+    function scatterPenaltyDots(actor, lostScore) {
+      const count = clamp(
+        Math.ceil(lostScore / 12),
+        CONFIG.HAZARD_SCATTER_MIN_DOTS,
+        CONFIG.HAZARD_SCATTER_MAX_DOTS
+      );
+      const dotScores = [];
+      let remaining = lostScore;
+      for (let i = 0; i < count; i += 1) {
+        const restDots = count - i;
+        const share = Math.max(1, Math.floor(remaining / restDots));
+        dotScores.push(share);
+        remaining -= share;
+      }
+      if (remaining > 0) dotScores[dotScores.length - 1] += remaining;
+      const burstCount = clamp(count * 3, 10, 30);
+      for (let i = 0; i < burstCount; i += 1) {
+        if (state.particles.length >= CONFIG.PARTICLE_CAP) break;
+        const ang = Math.random() * Math.PI * 2;
+        const spd = randRange(120, 360);
+        const life = randRange(0.25, 0.5);
+        state.particles.push({
+          x: actor.x,
+          y: actor.y,
+          vx: Math.cos(ang) * spd,
+          vy: Math.sin(ang) * spd,
+          life,
+          maxLife: life,
+          size: randRange(2.5, 6.5),
+          color: Math.random() < 0.6 ? "#ff4d4f" : "#ff9b66"
+        });
+      }
+      for (let i = 0; i < count; i += 1) {
+        const angle = (Math.PI * 2 * i) / count + randRange(-0.2, 0.2);
+        const launchSpeed = randRange(CONFIG.HAZARD_SCATTER_LAUNCH_SPEED_MIN, CONFIG.HAZARD_SCATTER_LAUNCH_SPEED_MAX);
+        state.dots.push({
+          id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random()}`,
+          x: actor.x,
+          y: actor.y,
+          type: "normal",
+          baseScore: dotScores[i],
+          comboGain: 1,
+          color: "#54e7ff",
+          radius: 5,
+          vx: 0,
+          vy: 0,
+          ttlSec: -1,
+          launchVx: Math.cos(angle) * launchSpeed,
+          launchVy: Math.sin(angle) * launchSpeed,
+          launchSec: CONFIG.HAZARD_SCATTER_LAUNCH_SEC,
+          noCollectUntilSec: (state.elapsedMs / 1000) + CONFIG.HAZARD_SCATTER_LAUNCH_SEC
+        });
+      }
+    }
+
     function applyCollection(actor, dot) {
       const nowSec = state.elapsedMs / 1000;
+      if (dot.type === "hazard") {
+        const actualLost = Math.min(actor.score, Math.floor(actor.score * CONFIG.HAZARD_PENALTY_RATE));
+        actor.score = Math.max(0, actor.score - actualLost);
+        actor.scoreReachedAt = state.elapsedMs;
+        actor.hazardFlashUntil = nowSec + CONFIG.HAZARD_FLASH_SEC;
+        if (actualLost > 0) scatterPenaltyDots(actor, actualLost);
+        emitCollectionParticles(dot);
+        return;
+      }
       const inChainWindow = nowSec - actor.lastCollectSec <= CONFIG.COMBO_CHAIN_WINDOW_SEC;
       actor.comboChainCount = inChainWindow ? actor.comboChainCount + 1 : 1;
       actor.combo = Math.min(CONFIG.MAX_COMBO, actor.combo + dot.comboGain);
@@ -572,10 +1017,13 @@
     }
 
     function updateCollections() {
+      const nowSec = state.elapsedMs / 1000;
       for (const actor of state.actors) {
         const collectR = actorCollectRadius(actor);
         for (let i = state.dots.length - 1; i >= 0; i -= 1) {
           const dot = state.dots[i];
+          if ((dot.launchSec || 0) > 0) continue;
+          if (nowSec < (dot.noCollectUntilSec || 0)) continue;
           const totalR = collectR + dot.radius;
           if (distSq(actor.x, actor.y, dot.x, dot.y) <= totalR * totalR) {
             applyCollection(actor, dot);
@@ -595,6 +1043,54 @@
       const nowSec = state.elapsedMs / 1000;
       if (nowSec - actor.lastCollectSec <= CONFIG.COMBO_DECAY_DELAY) return;
       actor.combo = Math.max(0, actor.combo - CONFIG.COMBO_DECAY_PER_SEC * dt);
+    }
+
+    function updateMovingDots(dt) {
+      for (let i = state.dots.length - 1; i >= 0; i -= 1) {
+        const d = state.dots[i];
+        if (d.launchSec > 0) {
+          d.x = clamp(d.x + d.launchVx * dt, 8, CONFIG.MAP_W - 8);
+          d.y = clamp(d.y + d.launchVy * dt, 8, CONFIG.MAP_H - 8);
+          d.launchVx *= 0.96;
+          d.launchVy *= 0.96;
+          if (Math.random() < 0.55 && state.particles.length < CONFIG.PARTICLE_CAP) {
+            const life = randRange(0.12, 0.24);
+            state.particles.push({
+              x: d.x,
+              y: d.y,
+              vx: -d.launchVx * 0.08 + randRange(-14, 14),
+              vy: -d.launchVy * 0.08 + randRange(-14, 14),
+              life,
+              maxLife: life,
+              size: randRange(1.6, 3.2),
+              color: "#7edbff"
+            });
+          }
+          d.launchSec -= dt;
+        }
+        if (d.type !== "chaser") continue;
+        d.ttlSec -= dt;
+        if (d.ttlSec <= 0) {
+          state.dots.splice(i, 1);
+          continue;
+        }
+        d.x += d.vx * dt;
+        d.y += d.vy * dt;
+        if (d.x < 10) {
+          d.x = 10;
+          d.vx = Math.abs(d.vx);
+        } else if (d.x > CONFIG.MAP_W - 10) {
+          d.x = CONFIG.MAP_W - 10;
+          d.vx = -Math.abs(d.vx);
+        }
+        if (d.y < 10) {
+          d.y = 10;
+          d.vy = Math.abs(d.vy);
+        } else if (d.y > CONFIG.MAP_H - 10) {
+          d.y = CONFIG.MAP_H - 10;
+          d.vy = -Math.abs(d.vy);
+        }
+      }
     }
 
     function maintainDots(dt) {
@@ -661,6 +1157,92 @@
       }
     }
 
+    function updateJoinIntroEvents(nowSec) {
+      while (
+        state.joinNextEventIndex < state.joinEvents.length
+        && nowSec >= state.joinEvents[state.joinNextEventIndex].atSec
+      ) {
+        const ev = state.joinEvents[state.joinNextEventIndex];
+        const li = document.createElement("li");
+        li.textContent = ev.text;
+        joinFeed.appendChild(li);
+        const joinedActor = state.actors.find((a) => a.id === ev.actorId);
+        if (joinedActor) {
+          const from = randomOffscreenSpawnPoint();
+          joinedActor.joined = true;
+          joinedActor.joinAnimating = true;
+          joinedActor.joinAnimStartSec = nowSec;
+          joinedActor.joinFromX = from.x;
+          joinedActor.joinFromY = from.y;
+          joinedActor.x = from.x;
+          joinedActor.y = from.y;
+        }
+        joinSub.textContent = `${2 + state.joinNextEventIndex}/4 참가자 준비`;
+        state.joinNextEventIndex += 1;
+      }
+    }
+
+    function updateJoinAnimations(nowSec) {
+      for (const actor of state.actors) {
+        if (!actor.joinAnimating) continue;
+        const t = (nowSec - actor.joinAnimStartSec) / actor.joinAnimDurationSec;
+        if (t >= 1) {
+          actor.joinAnimating = false;
+          actor.x = actor.anchorX;
+          actor.y = actor.anchorY;
+          continue;
+        }
+        const e = easeOutCubic(t);
+        actor.x = lerp(actor.joinFromX, actor.anchorX, e);
+        actor.y = lerp(actor.joinFromY, actor.anchorY, e);
+      }
+    }
+
+    function updateJoinScene(nowMs) {
+      const dt = clamp((nowMs - state.lastFrameTimeMs) / 1000, 0, 0.05);
+      state.lastFrameTimeMs = nowMs;
+      state.joinElapsedMs += dt * 1000;
+      const nowSec = state.joinElapsedMs / 1000;
+      const progress = clamp(nowSec / CONFIG.JOIN_TOTAL_SEC, 0, 1);
+      joinBarFill.style.width = `${(progress * 100).toFixed(1)}%`;
+      joinTitle.textContent = "참가자 입장 중...";
+      joinFeed.style.display = "grid";
+      joinSub.style.display = "block";
+      joinStartFx.style.display = "none";
+      joinCountdown.style.display = "block";
+      const remainSec = Math.max(0, CONFIG.JOIN_TOTAL_SEC - nowSec);
+      joinCountdown.textContent = `게임 시작까지 ${remainSec.toFixed(1)}초`;
+      updateJoinIntroEvents(nowSec);
+      updateJoinAnimations(nowSec);
+      if (nowSec >= CONFIG.JOIN_TOTAL_SEC) {
+        state.joinSceneActive = false;
+        hideJoinPanel();
+        startGameStartScene(nowMs);
+      }
+    }
+
+    function updateGameStartScene(nowMs) {
+      const dt = clamp((nowMs - state.lastFrameTimeMs) / 1000, 0, 0.05);
+      state.lastFrameTimeMs = nowMs;
+      state.gameStartElapsedMs += dt * 1000;
+      const totalMs = CONFIG.GAME_START_FX_SEC * 1000;
+      const holdMs = 700;
+      const fadeSpanMs = Math.max(1, totalMs - holdMs);
+      let opacity = 1;
+      if (state.gameStartElapsedMs > holdMs) {
+        const fadeT = clamp((state.gameStartElapsedMs - holdMs) / fadeSpanMs, 0, 1);
+        opacity = 1 - fadeT;
+      }
+      const pulseT = clamp(state.gameStartElapsedMs / totalMs, 0, 1);
+      const scale = 1.08 - pulseT * 0.08;
+      gameStartCard.style.opacity = `${opacity.toFixed(3)}`;
+      gameStartCard.style.transform = `scale(${scale.toFixed(3)})`;
+      if (state.gameStartElapsedMs >= totalMs) {
+        state.gameStartElapsedMs = totalMs;
+        state.gameStartReady = true;
+      }
+    }
+
     function endGame() {
       if (state.ended) return;
       state.ended = true;
@@ -682,6 +1264,7 @@
       }
 
       updatePlayer(dt);
+      updateMovingDots(dt);
       updateBots(dt);
       updateCollections();
       maintainDots(dt);
@@ -733,6 +1316,28 @@
     function drawDots() {
       const blur = state.qualityReduced ? CONFIG.SHADOW_BLUR_LOW : CONFIG.SHADOW_BLUR;
       for (const d of state.dots) {
+        if (d.type === "hazard") {
+          const t = state.elapsedMs / 1000;
+          const pulse = 1 + 0.12 * Math.sin(t * 10);
+          const r = d.radius * pulse;
+          withNeon("#ff4d4f", blur + 4, () => {
+            ctx.beginPath();
+            ctx.moveTo(d.x, d.y - r * 1.3);
+            ctx.lineTo(d.x - r * 1.12, d.y + r * 0.85);
+            ctx.lineTo(d.x + r * 1.12, d.y + r * 0.85);
+            ctx.closePath();
+            ctx.fill();
+          });
+          ctx.save();
+          ctx.globalAlpha = 0.5 + 0.25 * Math.sin(t * 7);
+          ctx.strokeStyle = "#ff9b66";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(d.x, d.y, r * 1.85, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+          continue;
+        }
         withNeon(d.color, blur, () => {
           const size = d.radius * 2;
           ctx.beginPath();
@@ -772,6 +1377,7 @@
       const ranks = currentRanks();
       const leaderId = ranks.length > 0 ? ranks[0].id : -1;
       for (const a of state.actors) {
+        if (!a.joined) continue;
         const r = actorRadius(a);
         withNeon(a.color, blur, () => {
           ctx.beginPath();
@@ -784,7 +1390,21 @@
         ctx.font = "12px Arial";
         ctx.textAlign = "center";
         ctx.fillText(a.name, a.x, a.y - r - 10);
+        if (!a.isPlayer && (state.elapsedMs / 1000) <= a.joinBadgeUntilSec) {
+          ctx.font = "10px Arial";
+          ctx.fillStyle = "#8effd8";
+          ctx.fillText("JOINED", a.x, a.y - r - 23);
+        }
         ctx.restore();
+        if ((state.elapsedMs / 1000) <= a.hazardFlashUntil) {
+          ctx.save();
+          ctx.globalAlpha = 0.35;
+          ctx.fillStyle = "#ff4d4f";
+          ctx.beginPath();
+          ctx.arc(a.x, a.y, r * 1.08, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
         if (a.id === leaderId) drawCrown(a.x, a.y, r);
       }
     }
@@ -828,9 +1448,10 @@
 
     function drawHud() {
       if (state.actors.length === 0) return;
-      const ranks = currentRanks();
       const v = state.gameView;
       const s = state.viewScale;
+      if (!state.running) return;
+      const ranks = currentRanks();
       const timeSec = (state.remainingMs / 1000).toFixed(1);
 
       ctx.save();
@@ -896,6 +1517,10 @@
     // 8) UI flow
     function showStartPanel() { startPanel.style.display = "flex"; }
     function hideStartPanel() { startPanel.style.display = "none"; }
+    function showJoinPanel() { joinPanel.style.display = "flex"; }
+    function hideJoinPanel() { joinPanel.style.display = "none"; }
+    function showGameStartPanel() { gameStartPanel.style.display = "flex"; }
+    function hideGameStartPanel() { gameStartPanel.style.display = "none"; }
     function hideResultPanel() { resultPanel.style.display = "none"; }
 
     function showResultPanel() {
@@ -927,8 +1552,11 @@
     }
 
     function loop(nowMs) {
-      if (state.running) updateGame(nowMs);
+      if (state.joinSceneActive) updateJoinScene(nowMs);
+      else if (state.gameStartSceneActive) updateGameStartScene(nowMs);
+      else if (state.running) updateGame(nowMs);
       render();
+      if (state.gameStartSceneActive && state.gameStartReady) beginGameplay(nowMs);
       requestAnimationFrame(loop);
     }
 
@@ -937,18 +1565,28 @@
       if (!document.hidden) state.lastFrameTimeMs = performance.now();
     });
 
+    fullscreenBtn.addEventListener("click", async () => {
+      await toggleFullscreenBestEffort();
+      updateFullscreenButtonLabel();
+    });
     startBtn.addEventListener("click", () => {
       hideStartPanel();
-      resetGame();
+      startJoinScene();
     });
     restartBtn.addEventListener("click", () => {
-      resetGame();
+      startJoinScene();
     });
+    document.addEventListener("fullscreenchange", updateFullscreenButtonLabel);
+    document.addEventListener("webkitfullscreenchange", updateFullscreenButtonLabel);
+    document.addEventListener("msfullscreenchange", updateFullscreenButtonLabel);
 
     // pre-start safe render init
     resizeCanvas();
-    initActors();
+    state.actors = [];
     fillInitialDots();
+    hideJoinPanel();
+    hideGameStartPanel();
+    updateFullscreenButtonLabel();
     showStartPanel();
     requestAnimationFrame(loop);
   </script>

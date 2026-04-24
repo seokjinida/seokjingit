@@ -1,4 +1,4 @@
-# Neon Pop Sweeper (Dynamic Vision) - Game Spec v1.1 (Current Build)
+# Neon Pop Sweeper (Dynamic Vision) - Game Spec v1.5 (Current Build)
 
 이 문서는 `index.html` 최신 구현 상태를 기준으로 동기화한 스냅샷입니다.
 
@@ -9,6 +9,7 @@
 - Session Time: 정확히 70초 (`70000ms`)
 - Platform: HTML5 Canvas (Desktop + Mobile Web)
 - 승리 조건: 제한 시간 종료 시 최고 점수
+- 핵심 재미 가설: `docs/04_FUN_HYPOTHESES.md` 참조
 
 ## 2. 현재 Core Loop
 
@@ -48,14 +49,17 @@
 
 | Type | Spawn Ratio | Base Score | Combo Gain | Extra |
 |---|---:|---:|---:|---|
-| normal | 85% | +10 | +1 | - |
+| normal | 81% | +10 | +1 | - |
 | bonus | 12% | +25 | +2 | - |
 | fever | 3% | +40 | +4 | 피버 2.5초 |
+| chaser | 2% | +55 | +5 | 보라색 이동 닷, 벽 반사, 6~8초 후 소멸 |
+| hazard | 2% | 0 | 0 | 붉은 삼각 위험 닷, 획득 시 현재 점수 5% 손실(최소 5/최대 80), 손실 점수만큼 필드 환원 닷 분산 |
 
 ## 4. 점수/콤보/연출 규칙
 
 ### 점수
 - 수집 시: `score += baseScore + combo * 2`
+- 예외: `hazard` 수집 시 점수를 획득하지 않고, 현재 점수의 `5%`를 잃는다. (최소 `5`, 최대 `80`)
 
 ### 콤보
 - 수집 시: `combo = min(50, combo + comboGain)`
@@ -112,6 +116,10 @@
   - `catchupBonus = (botRank >= 3) ? 8 : 0`
   - `total = valueScore + distScore + catchupBonus`
 - 선택된 목표 방향으로 즉시 전환 이동
+- 닉네임 규칙:
+  - `Bot_1`, `AI_Player` 같은 기계형 이름 금지
+  - 사람 닉네임처럼 보이는 4~10자 이름 사용(영문/숫자/언더스코어 소량 허용)
+  - 예시: `NeoFox`, `MintBug`, `RinRin`, `JAY_92`
 
 ## 8. 렌더링/아트
 
@@ -126,6 +134,9 @@
 ### 시작 전
 - 시작 안내 패널 표시
 - 조작법/라운드 안내 후 `Start Game`으로 시작
+- `Start Game` 직후 `2~3초` 내 참가자 합류 연출 표시
+  - "참가자 입장 중..." 카운트다운 또는 짧은 프리롤
+  - AI 3인 순차 합류 토스트(예: `NeoFox 님이 합류했습니다`)
 - 시작/결과 오버레이 UI는 게임 뷰 스케일과 동기화(작은 화면에서 함께 축소)
 - 시작 전(플레이 미진입) 상태에서도 렌더 루프가 에러 없이 동작해야 함
   - 최소 엔티티 초기화 또는 빈 배열 방어 로직 중 하나를 반드시 포함
@@ -140,12 +151,6 @@
 - 결과 패널: 최종 순위/점수, 플레이어 강조, `Restart`
 - 동점: 먼저 해당 점수 도달한 참가자 우선
 
-## 10. KPI 체크(현재 빌드 기준)
+## 10. 검증 기준 (Prototype Validation)
 
-- [ ] 시작 패널 -> Start Game -> 정상 라운드 진입
-- [ ] 조이스틱 + WASD/방향키 이동 모두 동작
-- [ ] 네온 사각형 닷 수집/리스폰 정상 동작
-- [ ] 콤보 체인 0.6초 규칙(초과 시 체인 초기화) 확인
-- [ ] 콤보 색상/크기 단계 연출(15단위, 10% 증분) 확인
-- [ ] 70초 정확 종료 및 결과 패널 표시
-- [ ] Restart 후 초기화/재플레이 정상 동작
+- 기능 체크리스트와 합격 판정 규칙은 `docs/05_VALIDATION_CRITERIA.md`를 기준으로 적용
