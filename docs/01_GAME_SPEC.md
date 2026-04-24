@@ -86,9 +86,13 @@
 - 보간: `currentZoom = lerp(currentZoom, targetZoom, 0.1)`
 - 줌 범위: `0.2 ~ 3.0`
 - 시작 줌: `3.0` (초기 카메라를 더 가깝게)
+- 화면 비율: `16:9` 고정 게임 뷰(레터박스 적용)
+- 화면 축소 시 전체 뷰 스케일 동기화:
+  - 기준 폭 `1600` 대비 비율로 월드/UI/조이스틱이 함께 축소
+  - 작은 화면일수록 플레이어/닷/UI가 상대적으로 작아지고, 화면에 보이는 월드 범위가 넓어짐
 - 월드 클램프:
-  - `halfW = canvas.width / (2 * zoom)`
-  - `halfH = canvas.height / (2 * zoom)`
+  - `halfW = gameView.width / (2 * zoom)`
+  - `halfH = gameView.height / (2 * zoom)`
   - `camX = clamp(player.x, halfW, MAP_W - halfW)`
   - `camY = clamp(player.y, halfH, MAP_H - halfH)`
 
@@ -107,7 +111,7 @@
   - `distScore = -distance * 0.08`
   - `catchupBonus = (botRank >= 3) ? 8 : 0`
   - `total = valueScore + distScore + catchupBonus`
-- 선택된 목표로 조향 이동(관성 보간)
+- 선택된 목표 방향으로 즉시 전환 이동
 
 ## 8. 렌더링/아트
 
@@ -122,6 +126,9 @@
 ### 시작 전
 - 시작 안내 패널 표시
 - 조작법/라운드 안내 후 `Start Game`으로 시작
+- 시작/결과 오버레이 UI는 게임 뷰 스케일과 동기화(작은 화면에서 함께 축소)
+- 시작 전(플레이 미진입) 상태에서도 렌더 루프가 에러 없이 동작해야 함
+  - 최소 엔티티 초기화 또는 빈 배열 방어 로직 중 하나를 반드시 포함
 
 ### 플레이 중
 - 상단 중앙: 남은 시간(소수점 1자리)

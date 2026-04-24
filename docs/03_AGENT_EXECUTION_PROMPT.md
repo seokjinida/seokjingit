@@ -1,58 +1,60 @@
-# Agent Execution Prompt - Neon Pop Sweeper (v1.1)
+# 에이전트 실행 프롬프트 - Neon Pop Sweeper (v1.1)
 
 아래 지시를 그대로 따르세요.
 
-## Objective
-Build a fully playable "Neon Pop Sweeper (Dynamic Vision)" prototype as a single `index.html` file using only HTML/CSS/Vanilla JavaScript and Canvas 2D API.
+## 목표
+HTML/CSS/Vanilla JavaScript와 Canvas 2D API만 사용하여, `index.html` 단일 파일 기반의 완전 플레이 가능한 "Neon Pop Sweeper (Dynamic Vision)" 프로토타입을 구현하세요.
 
-## Source of Truth
-- Spec: `docs/01_GAME_SPEC.md`
-- Rules: `docs/02_IMPLEMENTATION_RULES.md`
+## 기준 문서 (Source of Truth)
+- 기획/수치 기준: `docs/01_GAME_SPEC.md`
+- 구현 고정 룰: `docs/02_IMPLEMENTATION_RULES.md`
 
-If any text conflicts, prioritize numeric constants and formulas from the spec.
+문서 간 충돌이 있을 경우, `01_GAME_SPEC.md`의 수치/공식 값을 우선 적용하세요.
 
-## Hard Constraints
-1. Output file must be exactly one file: `index.html`
-2. No external libraries, assets, fonts, or network calls
-3. Session must end at exactly `70000ms` (`performance.now()` based)
-4. Map must be `2000x2000` and camera must never show outside map bounds
-5. 1 player + 3 AI bots, no combat/penalty overlap
-6. Show a start panel first, then begin on `Start Game`
-7. Support both pointer joystick and keyboard (`WASD` + arrow keys)
+## 하드 제약 조건
+1. 출력 파일은 반드시 `index.html` 한 개여야 합니다.
+2. 외부 라이브러리, 외부 에셋, 외부 폰트, 네트워크 요청을 사용하지 않습니다.
+3. 세션 종료 시점은 정확히 `70000ms`여야 합니다. (`performance.now()` 기준)
+4. 맵은 `2000x2000`이며 카메라는 맵 바깥을 절대 보여주면 안 됩니다.
+5. 플레이어 1명 + AI 봇 3명 구성, 공격/충돌 페널티는 없습니다.
+6. 시작 시 시작 패널을 먼저 보여주고 `Start Game`으로 시작합니다.
+7. 포인터 조이스틱과 키보드(`WASD` + 방향키)를 모두 지원합니다.
 
-## Must-Have Runtime Behavior
-- Square neon dots with spawn maintenance and pickup scoring
-- Character growth by combo (current tuned multiplier from spec)
-- Dynamic camera zoom with smooth lerp and clamp
-- Combo chain text in top-center UI (0.6 second chain window)
-- Combo text color tier + size tier progression
-- Real-time ranking board + final ranking modal + restart
-- Pickup particles from dot position (not actor center)
-- No pickup-triggered screen shake in current build
+## 필수 런타임 동작
+- 네온 사각형 닷 스폰/유지/수집
+- 콤보 기반 캐릭터 성장 (최신 튜닝값 기준)
+- 부드러운 보간 + 클램프를 포함한 동적 카메라 줌
+- 중앙 상단 연속 획득 체인 텍스트 (0.6초 체인 윈도우)
+- 체인 텍스트의 색상/크기 단계 연출
+- 실시간 랭킹 보드 + 종료 랭킹 패널 + 재시작
+- 수집 파티클은 캐릭터 중심이 아닌 닷 위치에서 생성
+- 현재 빌드에서는 수집 시 화면 흔들림을 사용하지 않음
 
-## Implementation Order
-1. Canvas boot + resize + loop timing
-2. Constants/state + utility helpers
-3. Start panel / result panel flow
-4. Input systems (pointer joystick + keyboard)
-5. Actor movement + AI steering logic
-6. Dot spawning + collision collection
-7. Score/combo/fever/chain logic
-8. Camera zoom and world clamping
-9. Rendering layers (world, dots, actors, UI, combo text)
-10. Restart and quality fallback handling
+## 구현 순서
+1. 캔버스 초기화 + 리사이즈 + 메인 루프 타이밍
+2. 상수/상태/유틸 함수 구성
+3. 시작 패널/결과 패널 UI 플로우
+4. 입력 시스템(포인터 조이스틱 + 키보드)
+5. 액터 이동 + AI 타깃/이동 로직
+6. 닷 스폰/유지 + 수집 판정
+7. 점수/성장 콤보/체인 연출/피버 처리
+8. 카메라 줌 + 월드 클램프
+9. 렌더 레이어(월드, 닷, 액터, HUD, 체인 텍스트)
+10. 재시작 및 성능 저하 대응
 
-## Delivery Quality
-- Opens and runs directly in browser
-- No TODO/FIXME placeholders
-- Pointer cancel and focus/blur edge cases handled
-- Restart works repeatedly without broken state
+## 산출물 품질 기준
+- 브라우저에서 파일을 열면 즉시 실행 가능해야 함
+- TODO/FIXME 플레이스홀더가 없어야 함
+- `pointercancel`, `focus/blur` 예외 상황이 안정적으로 처리되어야 함
+- Restart를 반복해도 상태가 깨지지 않아야 함
+- Start Game 누르기 전(시작 패널 표시 상태)에도 undefined 접근 없이 렌더가 안전해야 함
 
-## Acceptance Checklist
-- [ ] Start panel appears before gameplay and Start button begins run
-- [ ] Pointer joystick + WASD/arrow controls both function
-- [ ] Dots are rendered as squares and pickups score correctly
-- [ ] Combo chain resets when 0.6 second passes without pickup
-- [ ] Combo text appears in top center with color/size tiering
-- [ ] Session ends exactly at 70 seconds and final ranking is shown
-- [ ] Restart restores a clean initial state
+## 완료 체크리스트
+- [ ] 시작 패널이 먼저 보이고 Start 버튼으로 정상 시작됨
+- [ ] 시작 전 상태에서 런타임 에러가 발생하지 않음
+- [ ] 포인터 조이스틱 + WASD/방향키 조작이 모두 동작함
+- [ ] 닷이 사각형으로 렌더링되고 정상 수집됨
+- [ ] 연속 획득 체인이 0.6초 초과 시 초기화됨
+- [ ] 체인 텍스트가 중앙 상단에 표시되고 색/크기 단계가 적용됨
+- [ ] 70초에 정확히 종료되고 최종 순위가 표시됨
+- [ ] Restart 시 초기 상태로 정상 복원됨
