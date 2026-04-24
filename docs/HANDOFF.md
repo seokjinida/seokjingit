@@ -3,7 +3,7 @@
 ## 1) 프로젝트 개요
 
 - 프로젝트명: `Neon Pop Sweeper (Dynamic Vision)`
-- 목표: MD 문서(`docs/01~05`)만으로 AI가 실행 가능한 `index.html` 단일 파일 프로토타입 재생성 가능해야 함
+- 목표: MD 문서(`docs/01~05`)만으로 AI가 실행 가능한 `NeonPopSweeper.html` 단일 파일 프로토타입 재생성 가능해야 함
 - 저장소: `https://github.com/seokjinida/seokjingit.git`
 - 배포 URL: `https://seokjinida.github.io/seokjingit/`
 
@@ -18,7 +18,7 @@
 
 ## 3) 현재 구현 상태 (핵심)
 
-- 루트 `index.html`: **플레이 가능한 단일 파일** 프로토타입(Canvas 2D, 외부 라이브러리·네트워크 없음).
+- 루트 `NeonPopSweeper.html`: **플레이 가능한 단일 파일** 프로토타입(Canvas 2D, 외부 라이브러리·네트워크 없음).
 - 동작·수치는 `docs/01_GAME_SPEC.md` 등과 맞출 것; 불일치 시 스펙 문서를 먼저 수정한 뒤 코드 반영.
 
 ## 4) 최근 주요 요청 반영 히스토리 요약
@@ -57,12 +57,16 @@
    - 장시간 플레이/고콤보에서도 화면을 덮는 초대형 스케일이 발생하지 않도록 상한 강제
 13. AI/닷 추가 튜닝:
    - 붉은 위험 닷(`hazard`) 동시 활성 최대 `3`개 제한
-   - AI가 위험 닷 감지 시 일정 확률로 회피 이동 수행
+   - AI는 위험 닷(`hazard`)을 인지/회피 대상으로 취급하지 않도록 로직 단순화
    - 수집 파티클의 크기/확산 거리 추가 상향으로 타격감 강화
+14. 콤보 UI 연출 규칙 고정:
+   - 콤보 텍스트 스케일 연출은 콤보 증가 시 1회만 재생
+   - 1회 연출 최대 배율은 해당 단계 기본 스케일 대비 2배
+   - 지속 펄스(반복 진동) 연출은 사용하지 않음
 
 ## 5) Git 상태 / 커밋
 
-- 로컬 변경 후 `git status`로 확인(문서만 수정 시 커밋 메시지 예: `docs: sync with index.html build`)
+- 로컬 변경 후 `git status`로 확인(문서만 수정 시 커밋 메시지 예: `docs: sync with NeonPopSweeper build`)
 - 최근 반영 커밋(요약):
   - `96c2590` Neon Pop Sweeper: docs split, join flow, chaser/hazard, VFX tuning.
   - `82cf240` Tune HUD layout and sync docs for web build.
@@ -70,7 +74,7 @@
 ## 6) 재시작 시 권장 작업 순서
 
 1. `docs/01~05` 최신값 확인
-2. `index.html` 실행 후 체감 검증
+2. `NeonPopSweeper.html` 실행 후 체감 검증
 3. 변경 발생 시:
    - 코드 수정
    - 문서 동기화(`01`, `02`, `03`, `04`, `05`)
