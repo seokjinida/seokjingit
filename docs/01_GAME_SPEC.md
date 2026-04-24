@@ -1,4 +1,4 @@
-# Neon Pop Sweeper (Dynamic Vision) - Game Spec v1.9 (Current Build)
+# Neon Pop Sweeper (Dynamic Vision) - Game Spec v1.10 (Current Build)
 
 이 문서는 게임 기획·수치·플로우에 대한 단일 기준(SoT) 스냅샷입니다. 루트 `index.html` 구현과 차이가 있으면 본 문서를 우선합니다.
 
@@ -6,7 +6,7 @@
 
 - Title: Neon Pop Sweeper (Dynamic Vision)
 - Genre: Hyper-Casual Collection & Competition
-- Session Time: 정확히 70초 (`70000ms`)
+- Session Time: 정확히 60초 (`60000ms`)
 - Platform: HTML5 Canvas (Desktop + Mobile Web)
 - 승리 조건: 제한 시간 종료 시 최고 점수
 - 핵심 재미 가설: `docs/04_FUN_HYPOTHESES.md` 참조
@@ -20,7 +20,7 @@
 5. 네온 스퀘어(및 특수) 닷 수집 → 점수/콤보 상승(위험 닷은 예외)
 6. 캐릭터 크기 성장 + 카메라 동적 줌 적용
 7. AI 3인과 실시간 점수 랭킹 경쟁
-8. 70초 종료 시 결과 패널 + 재시작
+8. 60초 종료 시 결과 패널 + 재시작
 
 ## 3. 월드/엔티티 스펙
 
@@ -161,7 +161,7 @@
 - 좌측 하단 상태 패널(콤보/줌/점수): 미표시
 
 ### 종료
-- 조건: `elapsedMs >= 70000`
+- 조건: `elapsedMs >= 60000`
 - 결과 패널: 최종 순위/점수, 플레이어 강조, `Restart`
 - 동점: 먼저 해당 점수 도달한 참가자 우선
 

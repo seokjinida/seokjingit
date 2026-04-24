@@ -1,10 +1,10 @@
-# Neon Pop Sweeper - Implementation Rules v1.5 (Current Build)
+# Neon Pop Sweeper - Implementation Rules v1.6 (Current Build)
 
 이 문서는 현재 구현 방향에서 AI 에이전트의 임의 해석을 막기 위한 고정 룰입니다.
 
 ## 1) 변경 금지 코어 범위
 
-- 세션 시간: `70000ms`
+- 세션 시간: `60000ms`
 - 맵 크기: `2000x2000`
 - 인원 구성: 플레이어 1 + 봇 3
 - 산출물: `index.html` 단일 파일
@@ -42,7 +42,7 @@
 ## 5) 시간/카메라/월드 안정성
 
 - 시간 계산은 `performance.now()` 사용
-- 종료 판정은 `elapsedMs >= 70000`
+- 종료 판정은 `elapsedMs >= 60000`
 - 카메라는 항상 플레이어 기준 + 월드 클램프 필수
 - 어떤 줌/해상도에서도 맵 밖 미노출 보장
 - 렌더 좌표 변환은 한 번만 적용
