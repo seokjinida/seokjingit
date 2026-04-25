@@ -214,6 +214,7 @@
 | 스폰 금지 반경 | 120 | world units | 모든 액터 주변 | 고정 | 없음 | 시작 직후 근접 스폰 없음 |
 | hazard 동시 활성 | 최대 3 | 개 | 플레이 중 | max 3 | 없음 | 3 초과 생성 금지 |
 | hazard 발사 비수집 | 약 1.15 | 초 | hazard 환원 닷 | 고정 | 없음 | 발사 중 충돌 무시 확인 |
+| hazard 환원 분산 속도 | `950~1650` | units/s | hazard 환원 닷 | 고정 | 없음 | 분산 퍼짐 거리가 충분히 확보됨 |
 | 점수 공식 | `baseScore + combo*2` | 점수 | normal/bonus/fever/chaser | 고정 | hazard는 점수 획득 없음 | 타입별 점수 증가 확인 |
 | hazard 손실 공식 | `min(score, floor(score*0.05))` | 점수 | hazard 획득 시 | 최소 0 | score 0이면 손실/분산 없음 | 손실량 정수 반영 |
 | 타입별 수치 | normal `+10/+1`, bonus `+25/+2`, fever `+40/+4`, chaser `+55/+5`, hazard `+0/+0` | 점수/콤보 | 전체 | 고정 | 없음 | 타입별 수집 결과 일치 |
