@@ -1,4 +1,4 @@
-# 에이전트 실행 프롬프트 - Neon Pop Sweeper (v2.3)
+# 에이전트 실행 프롬프트 - Neon Pop Sweeper (v2.4)
 
 아래 지시를 그대로 따르세요.
 
@@ -14,6 +14,9 @@ HTML/CSS/Vanilla JavaScript와 Canvas 2D API만 사용하여, `NeonPopSweeper.ht
 문서 간 충돌이 있을 경우, `01_GAME_SPEC.md`의 수치/공식 값을 우선 적용하세요.
 
 구현 및 검증 단계에서 `04`, `05` 문서 기준을 반드시 점검하세요.
+
+`docs/01_GAME_SPEC.md`의 `11. 콘텐츠별 세부 규격표 (원샷 빌드용)`는 필수 구현 범위입니다.
+해당 표의 항목은 임의 생략/축약/치환하지 않습니다.
 
 ## 하드 제약 조건
 1. 출력 파일은 반드시 `NeonPopSweeper.html` 한 개여야 합니다.
@@ -79,6 +82,20 @@ HTML/CSS/Vanilla JavaScript와 Canvas 2D API만 사용하여, `NeonPopSweeper.ht
 - 소셜 체감: 실제 멀티플레이를 암시하는 과장 표현은 피하고, "합류/참가" 중심의 절제된 문구를 사용합니다.
 - 렌더 좌표계: 월드 오브젝트(플레이어/닷/파티클)는 동일한 좌표 변환 체인을 사용하고, `renderFrame` 외곽 변환과 오브젝트 변환에서 `viewScale`/`gameView` 오프셋을 중복 적용하지 않습니다.
 
+## 콘텐츠별 세부 조건 준수 규칙 (필수)
+- `docs/01_GAME_SPEC.md`의 `11`장 표 항목은 전부 구현하고, 누락 항목이 있으면 완료 보고를 금지합니다.
+- 특히 아래 항목은 누락 시 즉시 FAIL입니다.
+  1) 조인 씬 진행바(게이지) + 남은시간 + 합류 피드
+  2) 시작 카드 외부 하단 중앙 `전체화면` 버튼
+  3) hazard 경고 링(삼각 본체와 동시 렌더)
+  4) 수집 파티클 spark + shard 2레이어
+  5) 닷/파티클 렌더 구간 `lighter` 합성 및 이후 `source-over` 복귀
+  6) 결과 버튼 한글 라벨 `다시 시작`
+
+## 완료 게이트 (필수)
+- 기능 구현 후 `docs/05_VALIDATION_CRITERIA.md` 체크리스트를 항목별 PASS/FAIL로 기록합니다.
+- PASS/FAIL 기록에서 FAIL이 1개라도 있으면, 수정 후 재검증하기 전까지 완료로 보고하지 않습니다.
+
 ## 산출물 품질 기준
 - 브라우저에서 파일을 열면 즉시 실행 가능해야 함
 - TODO/FIXME 플레이스홀더가 없어야 함
@@ -87,7 +104,7 @@ HTML/CSS/Vanilla JavaScript와 Canvas 2D API만 사용하여, `NeonPopSweeper.ht
 - `게임 시작` 전(시작 패널 표시 상태)에도 undefined 접근 없이 렌더가 안전해야 함
 - 초기 레이아웃/리사이즈 단계에서 UI DOM 참조 누락으로 `Cannot read properties of undefined (reading 'style')`가 발생하지 않아야 함
 - 시작 전/조인/시작연출/결과 단계에서 랭킹 UI가 노출되지 않아야 함(`playing`에서만 표시)
-- UI 스케일은 게임 뷰 비율에 연동되어 축소되며, 최소 스케일 고정으로 인한 과대 표시가 없어야 함
+- UI 스케일은 게임 뷰 비율에 연동되어 축소되며, 조인/결과 카드는 `min 0.78` 하한을 적용함
 
 ## 완료 체크리스트
 - [ ] 시작 패널이 먼저 보이고 `게임 시작`으로 정상 플로우 진입
